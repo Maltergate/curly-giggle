@@ -5,6 +5,7 @@
 // Owns all runtime state. A single AppState instance lives in Application.
 // Every subsystem receives a (const) reference — no globals, no singletons.
 
+#include "gnc_viz/axis_manager.hpp"
 #include "gnc_viz/color_manager.hpp"
 #include "gnc_viz/plotted_signal.hpp"
 #include "gnc_viz/simulation_file.hpp"
@@ -44,7 +45,7 @@ struct AppState {
 
     // ── Plot layer ─────────────────────────────────────────────────────────────
     std::vector<PlottedSignal> plotted_signals;
-    // std::vector<AxisConfig> y_axes;  // Phase 8
+    AxisManager axis_manager;
 
     // ── Color management ──────────────────────────────────────────────────────
     ColorManager colors;

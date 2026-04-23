@@ -11,6 +11,8 @@ add_library(gnc_viz_lib STATIC
     simulation_file.cpp
     session.cpp
     operation_registry.cpp
+    time_aligner.cpp
+    axis_manager.cpp
 )
 
 target_include_directories(gnc_viz_lib PUBLIC
