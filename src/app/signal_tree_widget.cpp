@@ -92,6 +92,34 @@ void render_signal_tree(AppState& state)
 
             ImGui::PushID(meta.h5_path.c_str());
 
+            // [+]/[-] toggle on the LEFT — never overlaps with signal text
+            if (in_plot) {
+                if (ImGui::SmallButton("-")) {
+                    state.plotted_signals.erase(
+                        std::remove_if(state.plotted_signals.begin(),
+                                       state.plotted_signals.end(),
+                                       [&](const PlottedSignal& p) {
+                                           return p.sim_id == sim.sim_id() &&
+                                                  p.meta.h5_path == meta.h5_path;
+                                       }),
+                        state.plotted_signals.end());
+                }
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Remove from plot");
+            } else {
+                if (ImGui::SmallButton("+")) {
+                    PlottedSignal ps;
+                    ps.sim_id     = sim.sim_id();
+                    ps.meta       = meta;
+                    ps.alias      = meta.h5_path;
+                    ps.color_rgba = state.colors.assign(ps.plot_key());
+                    state.plotted_signals.push_back(std::move(ps));
+                }
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Add to plot");
+            }
+            ImGui::SameLine();
+
             // Type icon: [v] for vector, [s] for scalar
             const char* icon = meta.is_vector() ? "[v]" : "[s]";
             ImGui::TextDisabled("%s", icon);
@@ -114,25 +142,6 @@ void render_signal_tree(AppState& state)
             if (!meta.units.empty()) {
                 ImGui::SameLine();
                 ImGui::TextDisabled("[%s]", meta.units.c_str());
-            }
-
-            // [+] / checkmark at right edge
-            const float btn_w = 22.0f;
-            ImGui::SameLine(ImGui::GetContentRegionAvail().x - btn_w +
-                            ImGui::GetCursorPosX());
-            if (in_plot) {
-                ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.3f, 1.0f), "✓");
-            } else {
-                if (ImGui::SmallButton("+##add")) {
-                    PlottedSignal ps;
-                    ps.sim_id    = sim.sim_id();
-                    ps.meta      = meta;
-                    ps.alias     = meta.h5_path;
-                    ps.color_rgba = state.colors.assign(ps.plot_key());
-                    state.plotted_signals.push_back(std::move(ps));
-                }
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("Add to plot");
             }
 
             ImGui::PopID();
