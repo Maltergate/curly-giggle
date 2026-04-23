@@ -174,6 +174,9 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
             ImPlot::SetupAxisLimits(imaxis, cfg.range_min, cfg.range_max, ImPlotCond_Always);
     }
 
+    // Save fitting flag BEFORE clearing — the draw loop needs it to bypass
+    // culling so ImPlot's AutoFit can measure the true data bounds.
+    const bool fitting = m_fit_on_next_frame || m_fit_x_on_next_frame;
     if (m_fit_on_next_frame)  m_fit_on_next_frame  = false;
     if (m_fit_x_on_next_frame) m_fit_x_on_next_frame = false;
 
@@ -191,14 +194,23 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
         if (!ps.visible || !ps.buffer || !ps.buffer->is_loaded()) continue;
         if (ps.time_cache_f.empty() || ps.component_cache.empty()) continue;
 
-        // ── Visible-range culling: binary-search in the float time cache ──────
         const float* t_arr = ps.time_cache_f.data();
         const int    N_f   = static_cast<int>(ps.time_cache_f.size());
-        // +1 sample of padding on each side so the line extends to the view edge.
-        const int i0 = std::max(0,     (int)(std::lower_bound(t_arr, t_arr+N_f, vt0)
-                                             - t_arr) - 1);
-        const int i1 = std::min(N_f-1, (int)(std::upper_bound(t_arr, t_arr+N_f, vt1)
-                                             - t_arr));
+
+        // ── Visible-range culling: binary-search in the float time cache ──────
+        // When a fit is in progress, bypass culling so ImPlot's AutoFit sees
+        // the full dataset and can compute correct axis bounds.
+        int i0, i1;
+        if (fitting) {
+            i0 = 0;
+            i1 = N_f - 1;
+        } else {
+            // +1 sample of padding on each side so the line extends to the view edge.
+            i0 = std::max(0,     (int)(std::lower_bound(t_arr, t_arr+N_f, vt0)
+                                       - t_arr) - 1);
+            i1 = std::min(N_f-1, (int)(std::upper_bound(t_arr, t_arr+N_f, vt1)
+                                       - t_arr));
+        }
         const int vis_n = i1 - i0 + 1;
         if (vis_n <= 0) continue;
 
