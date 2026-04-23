@@ -6,6 +6,8 @@ add_executable(gnc_viz_tests
     test_error.cpp
     test_log.cpp
     test_app_state.cpp
+    test_config.cpp
+    test_interfaces.cpp
 )
 
 target_link_libraries(gnc_viz_tests PRIVATE

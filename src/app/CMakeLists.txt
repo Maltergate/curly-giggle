@@ -1,6 +1,7 @@
 add_executable(gnc_viz
     main.mm
     application.mm
+    collapsible_pane.cpp
 )
 
 target_compile_definitions(gnc_viz PRIVATE

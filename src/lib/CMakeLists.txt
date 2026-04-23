@@ -2,6 +2,7 @@ add_library(gnc_viz_lib STATIC
     version.cpp
     error.cpp
     log.cpp
+    config.cpp
 )
 
 target_include_directories(gnc_viz_lib PUBLIC
