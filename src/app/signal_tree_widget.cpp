@@ -97,8 +97,11 @@ void render_signal_tree(AppState& state)
             ImGui::TextDisabled("%s", icon);
             ImGui::SameLine();
 
-            // Signal name
-            ImGui::TextUnformatted(meta.name.c_str());
+            // Full HDF5 path — users need the full path to distinguish
+            // signals with the same leaf name from different sources.
+            ImGui::TextUnformatted(meta.h5_path.c_str());
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", meta.h5_path.c_str());
 
             // Shape annotation
             const std::string shp = shape_str(meta);
@@ -124,7 +127,7 @@ void render_signal_tree(AppState& state)
                     PlottedSignal ps;
                     ps.sim_id    = sim.sim_id();
                     ps.meta      = meta;
-                    ps.alias     = meta.name;
+                    ps.alias     = meta.h5_path;
                     ps.color_rgba = state.colors.assign(ps.plot_key());
                     state.plotted_signals.push_back(std::move(ps));
                 }

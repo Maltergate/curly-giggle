@@ -45,10 +45,10 @@ struct PlottedSignal {
     /// Unique key for ImPlot series ID and ColorManager: "<sim_id>:<h5_path>".
     [[nodiscard]] std::string plot_key() const { return sim_id + ":" + meta.h5_path; }
 
-    /// Display label for the legend: alias if set, otherwise meta.name.
+    /// Display label for the legend: alias if set, otherwise full HDF5 path.
     [[nodiscard]] const std::string& display_name() const noexcept
     {
-        return alias.empty() ? meta.name : alias;
+        return alias.empty() ? meta.h5_path : alias;
     }
 };
 
