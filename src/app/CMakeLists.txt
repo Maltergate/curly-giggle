@@ -1,4 +1,7 @@
-add_executable(gnc_viz main.mm)
+add_executable(gnc_viz
+    main.mm
+    application.mm
+)
 
 target_compile_definitions(gnc_viz PRIVATE
     GLFW_EXPOSE_NATIVE_COCOA   # needed for glfwGetCocoaWindow()
