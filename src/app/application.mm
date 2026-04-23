@@ -23,7 +23,7 @@
 #include "gnc_viz/version.hpp"
 #include "gnc_viz/simulation_list_ui.hpp"
 #include "gnc_viz/signal_tree_widget.hpp"
-#include "gnc_viz/timeseries_plot.hpp"
+#include "gnc_viz/plot_engine.hpp"
 #include "gnc_viz/simulation_file.hpp"
 #include "gnc_viz/color_manager.hpp"
 #include "gnc_viz/file_open_dialog.hpp"
@@ -37,7 +37,7 @@
 namespace gnc_viz {
 
 // ── forward declarations ───────────────────────────────────────────────────────
-static void render_ui_frame(AppState& state, TimeSeriesPlot& plot, const ImGuiIO& io);
+static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& io);
 static void draw_vertical_splitter(const char* id, float* width, float avail_w);
 
 // ── PIMPL — holds all ObjC / Metal / GLFW state ───────────────────────────────
@@ -52,7 +52,7 @@ struct Application::Impl {
     AppState state;
     bool     initialized = false;
     Config   config;
-    TimeSeriesPlot plot;
+    PlotEngine engine;
 };
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────────
@@ -221,7 +221,7 @@ void Application::run()
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
-            render_ui_frame(m_impl->state, m_impl->plot, io);
+            render_ui_frame(m_impl->state, m_impl->engine, io);
 
             ImGui::Render();
             ImGui_ImplMetal_RenderDrawData(ImGui::GetDrawData(), cmdBuf, enc);
@@ -268,7 +268,7 @@ static void draw_vertical_splitter(const char* id, float* width, float avail_w)
 
 // ── Three-pane layout + UI composition ────────────────────────────────────────
 
-static void render_ui_frame(AppState& state, TimeSeriesPlot& plot, const ImGuiIO& io)
+static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& io)
 {
     ImGuiViewport* vp = ImGui::GetMainViewport();
 
@@ -458,16 +458,33 @@ static void render_ui_frame(AppState& state, TimeSeriesPlot& plot, const ImGuiIO
             ImGui::Separator();
         }
 
-        // ── Fit toolbar ───────────────────────────────────────────────────────
-        if (ImGui::SmallButton("Fit All"))  plot.fit_to_data();
+        // ── Plot type selector ────────────────────────────────────────────────
+        ImGui::TextDisabled("Plot:");
         ImGui::SameLine();
-        if (ImGui::SmallButton("Fit X"))    plot.fit_x_only();
+        for (const auto& type_id : engine.available_types()) {
+            const bool is_active = (type_id == engine.current_type_id());
+            if (is_active)
+                ImGui::PushStyleColor(ImGuiCol_Button,
+                                      ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+            if (ImGui::SmallButton(type_id.c_str()))
+                engine.switch_to(type_id, state);
+            if (is_active)
+                ImGui::PopStyleColor();
+            ImGui::SameLine();
+        }
+        ImGui::Dummy(ImVec2(8.0f, 0.0f));
+        ImGui::SameLine();
+
+        // ── Fit toolbar ───────────────────────────────────────────────────────
+        if (ImGui::SmallButton("Fit All"))  engine.fit_to_data();
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Fit X"))    engine.fit_x_only();
         ImGui::SameLine();
         ImGui::Dummy(ImVec2(0, 0));  // flush sameline
 
-        // Time-series plot fills remaining height
+        // Plot fills remaining height
         const float remaining_h = ImGui::GetContentRegionAvail().y;
-        plot.render(state, -1.0f, remaining_h > 20.0f ? remaining_h : -1.0f);
+        engine.render(state, -1.0f, remaining_h > 20.0f ? remaining_h : -1.0f);
 
         ImGui::EndChild();
     }

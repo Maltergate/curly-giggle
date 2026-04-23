@@ -4,6 +4,9 @@ add_executable(gnc_viz
     collapsible_pane.cpp
     file_open_dialog.mm
     timeseries_plot.cpp
+    trajectory_2d_plot.cpp
+    ground_track_plot.cpp
+    plot_engine.cpp
     simulation_list_ui.cpp
     signal_tree_widget.cpp
 )

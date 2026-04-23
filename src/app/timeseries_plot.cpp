@@ -241,7 +241,42 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
         ImGui::EndTooltip();
     }
 
+    // ── Axis range right-click popups (must be inside BeginPlot block) ────────
+    for (int ax_idx = 0; ax_idx < 3; ++ax_idx) {
+        if (ax_idx > 0 && !state.axis_manager.has_signals_on(ax_idx)) continue;
+        const ImAxis imaxis = to_imaxis(ax_idx);
+        const std::string popup_id = "##ax_range_" + std::to_string(ax_idx);
+        if (ImPlot::IsAxisHovered(imaxis) && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+            ImGui::OpenPopup(popup_id.c_str());
+    }
+
     ImPlot::EndPlot();
+
+    // Render axis range popups outside BeginPlot
+    for (int ax_idx = 0; ax_idx < 3; ++ax_idx) {
+        if (ax_idx > 0 && !state.axis_manager.has_signals_on(ax_idx)) continue;
+        const std::string popup_id = "##ax_range_" + std::to_string(ax_idx);
+        if (ImGui::BeginPopup(popup_id.c_str())) {
+            auto& cfg = state.axis_manager.axis_config(ax_idx);
+            ImGui::TextDisabled("Y%d range", ax_idx + 1);
+            ImGui::Separator();
+            ImGui::Checkbox("Auto range##ax", &cfg.auto_range);
+            if (!cfg.auto_range) {
+                ImGui::SetNextItemWidth(140.0f);
+                ImGui::InputDouble("Min##ax", &cfg.range_min, 0.0, 0.0, "%.4g");
+                ImGui::SetNextItemWidth(140.0f);
+                ImGui::InputDouble("Max##ax", &cfg.range_max, 0.0, 0.0, "%.4g");
+            }
+            ImGui::Separator();
+            static char s_label_buf[64] = {};
+            std::strncpy(s_label_buf, cfg.label.c_str(), sizeof(s_label_buf) - 1);
+            s_label_buf[sizeof(s_label_buf) - 1] = '\0';
+            ImGui::SetNextItemWidth(180.0f);
+            if (ImGui::InputText("Label##ax", s_label_buf, sizeof(s_label_buf)))
+                cfg.label = s_label_buf;
+            ImGui::EndPopup();
+        }
+    }
 }
 
 } // namespace gnc_viz
