@@ -10,6 +10,7 @@ add_library(gnc_viz_lib STATIC
     hdf5_reader.cpp
     simulation_file.cpp
     session.cpp
+    operation_registry.cpp
 )
 
 target_include_directories(gnc_viz_lib PUBLIC

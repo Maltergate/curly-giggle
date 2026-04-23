@@ -29,7 +29,9 @@
 #include "gnc_viz/file_open_dialog.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
+#include <filesystem>
 #include <string>
 
 namespace gnc_viz {
@@ -99,6 +101,34 @@ bool Application::init(Config cfg)
         glfwTerminate();
         return false;
     }
+
+    // ── GLFW window user pointer (for drop callback) ───────────────────────────
+    glfwSetWindowUserPointer(m_impl->window, m_impl.get());
+
+    // ── Drag-and-drop: accept .h5 / .hdf5 files from Finder ──────────────────
+    glfwSetDropCallback(m_impl->window, [](GLFWwindow* w, int count, const char** paths) {
+        auto* impl = static_cast<Application::Impl*>(glfwGetWindowUserPointer(w));
+        if (!impl) return;
+        static int drop_counter = 0;
+        for (int i = 0; i < count; ++i) {
+            std::filesystem::path p(paths[i]);
+            std::string ext = p.extension().string();
+            // case-insensitive extension check
+            for (auto& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (ext != ".h5" && ext != ".hdf5") {
+                GNC_LOG_WARN("Dropped file ignored (not .h5/.hdf5): {}", paths[i]);
+                continue;
+            }
+            const std::string id = "drop" + std::to_string(drop_counter++);
+            auto sim = std::make_unique<SimulationFile>(id);
+            if (auto res = sim->open(p); res) {
+                GNC_LOG_INFO("Dropped file opened: {}", paths[i]);
+                impl->state.simulations.push_back(std::move(sim));
+            } else {
+                GNC_LOG_ERROR("Drop open failed for {}: {}", paths[i], res.error().message);
+            }
+        }
+    });
 
     // ── Metal ─────────────────────────────────────────────────────────────────
     m_impl->device = MTLCreateSystemDefaultDevice();
@@ -338,6 +368,9 @@ static void render_ui_frame(AppState& state, TimeSeriesPlot& plot, const ImGuiIO
 
         // Plotted-signal list (simple list at top of plot pane, Phase 6 will expand this)
         if (!state.plotted_signals.empty()) {
+            static int  s_editing_idx = -1;
+            static char s_edit_buf[512] = {};
+
             for (int idx = 0; idx < static_cast<int>(state.plotted_signals.size()); ) {
                 auto& ps = state.plotted_signals[idx];
                 ImGui::PushID(ps.plot_key().c_str());
@@ -352,11 +385,55 @@ static void render_ui_frame(AppState& state, TimeSeriesPlot& plot, const ImGuiIO
                 // Visibility toggle
                 ImGui::Checkbox("##vis", &ps.visible);
                 ImGui::SameLine();
-                // Label
-                ImGui::TextUnformatted(ps.display_name().c_str());
+
+                // ── Inline alias editor (Task 1) ──────────────────────────────
+                if (s_editing_idx == idx) {
+                    // Request focus on the first frame of editing
+                    ImGui::SetKeyboardFocusHere();
+                    ImGuiInputTextFlags edit_flags =
+                        ImGuiInputTextFlags_EnterReturnsTrue |
+                        ImGuiInputTextFlags_AutoSelectAll;
+                    bool committed = ImGui::InputText("##alias_edit", s_edit_buf,
+                                                      sizeof(s_edit_buf), edit_flags);
+                    bool lost_focus = !ImGui::IsItemActive() && !ImGui::IsItemFocused();
+                    if (committed) {
+                        ps.alias = s_edit_buf;
+                        s_editing_idx = -1;
+                    } else if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+                        s_editing_idx = -1;          // cancel — discard buffer
+                    } else if (lost_focus) {
+                        ps.alias = s_edit_buf;       // commit on focus loss
+                        s_editing_idx = -1;
+                    }
+                } else {
+                    ImGui::TextUnformatted(ps.display_name().c_str());
+                    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+                        s_editing_idx = idx;
+                        // Pre-fill: use existing alias, or h5_path if alias is empty
+                        const std::string& src = ps.alias.empty() ? ps.meta.h5_path : ps.alias;
+                        std::strncpy(s_edit_buf, src.c_str(), sizeof(s_edit_buf) - 1);
+                        s_edit_buf[sizeof(s_edit_buf) - 1] = '\0';
+                    }
+                }
                 ImGui::SameLine();
                 ImGui::TextDisabled("(%s)", ps.sim_id.c_str());
                 ImGui::SameLine();
+
+                // ── Y-axis badge (Task 2) ─────────────────────────────────────
+                {
+                    static const ImVec4 axis_colors[3] = {
+                        ImVec4(0.70f, 0.70f, 0.70f, 1.00f),   // Y1: neutral grey
+                        ImVec4(0.50f, 0.70f, 1.00f, 1.00f),   // Y2: blue tint
+                        ImVec4(0.50f, 1.00f, 0.60f, 1.00f),   // Y3: green tint
+                    };
+                    static const char* axis_labels[3] = {"[L]", "[R]", "[Y3]"};
+                    int axis = std::clamp(ps.y_axis, 0, 2);
+                    ImGui::PushStyleColor(ImGuiCol_Text, axis_colors[axis]);
+                    ImGui::TextUnformatted(axis_labels[axis]);
+                    ImGui::PopStyleColor();
+                }
+                ImGui::SameLine();
+
                 // Remove button
                 if (ImGui::SmallButton("✕##rm")) {
                     state.colors.release(ps.plot_key());
@@ -364,6 +441,17 @@ static void render_ui_frame(AppState& state, TimeSeriesPlot& plot, const ImGuiIO
                     ImGui::PopID();
                     continue;
                 }
+
+                // ── Right-click context menu for Y-axis (Task 2) ──────────────
+                if (ImGui::BeginPopupContextItem("##axis_ctx")) {
+                    ImGui::TextDisabled("Assign axis");
+                    ImGui::Separator();
+                    if (ImGui::MenuItem("Left (Y1)",  nullptr, ps.y_axis == 0)) ps.y_axis = 0;
+                    if (ImGui::MenuItem("Right (Y2)", nullptr, ps.y_axis == 1)) ps.y_axis = 1;
+                    if (ImGui::MenuItem("Y3",         nullptr, ps.y_axis == 2)) ps.y_axis = 2;
+                    ImGui::EndPopup();
+                }
+
                 ImGui::PopID();
                 ++idx;
             }
