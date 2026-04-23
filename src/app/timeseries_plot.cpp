@@ -8,6 +8,7 @@
 #include "gnc_viz/axis_manager.hpp"
 #include "gnc_viz/color_manager.hpp"
 #include "gnc_viz/log.hpp"
+#include "gnc_viz/tool_manager.hpp"
 
 #include "implot.h"
 #include "imgui.h"
@@ -242,6 +243,9 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
     }
 
     // ── Axis range right-click popups (must be inside BeginPlot block) ────────
+    // ── Tool system tick ──────────────────────────────────────────────────────
+    state.tool_manager.tick(state);
+
     for (int ax_idx = 0; ax_idx < 3; ++ax_idx) {
         if (ax_idx > 0 && !state.axis_manager.has_signals_on(ax_idx)) continue;
         const ImAxis imaxis = to_imaxis(ax_idx);

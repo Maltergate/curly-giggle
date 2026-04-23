@@ -9,6 +9,7 @@
 #include "gnc_viz/color_manager.hpp"
 #include "gnc_viz/plotted_signal.hpp"
 #include "gnc_viz/simulation_file.hpp"
+#include "gnc_viz/tool_manager.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -46,6 +47,9 @@ struct AppState {
     // ── Plot layer ─────────────────────────────────────────────────────────────
     std::vector<PlottedSignal> plotted_signals;
     AxisManager axis_manager;
+
+    // ── Tool system ───────────────────────────────────────────────────────────
+    ToolManager tool_manager;
 
     // ── Color management ──────────────────────────────────────────────────────
     ColorManager colors;

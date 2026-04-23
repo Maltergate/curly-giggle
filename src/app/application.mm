@@ -27,6 +27,10 @@
 #include "gnc_viz/simulation_file.hpp"
 #include "gnc_viz/color_manager.hpp"
 #include "gnc_viz/file_open_dialog.hpp"
+#include "gnc_viz/tool_manager.hpp"
+#include "gnc_viz/derived_signal.hpp"
+#include "gnc_viz/operation_registry.hpp"
+#include "gnc_viz/signal_metadata.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -455,6 +459,83 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
                 ImGui::PopID();
                 ++idx;
             }
+
+            // ── Derived signal creator (modal dialog) ──────────────────────────
+            if (ImGui::SmallButton("+ Derived"))
+                ImGui::OpenPopup("Create Derived Signal");
+
+            if (ImGui::BeginPopupModal("Create Derived Signal", nullptr,
+                                        ImGuiWindowFlags_AlwaysAutoResize)) {
+                static int  s_op_sel = 0;
+                static char s_name_buf[128] = "derived";
+
+                static auto op_reg = gnc_viz::create_operation_registry();
+                const auto& op_keys = op_reg.keys();
+
+                ImGui::Text("Operation:");
+                for (int i = 0; i < static_cast<int>(op_keys.size()); ++i) {
+                    ImGui::SameLine();
+                    if (ImGui::RadioButton(op_keys[i].c_str(), &s_op_sel, i)) {}
+                }
+
+                ImGui::Text("Inputs (select 1-N signals from the plot):");
+                static std::vector<uint8_t> s_input_sel;
+                if (s_input_sel.size() != state.plotted_signals.size())
+                    s_input_sel.assign(state.plotted_signals.size(), 0);
+
+                for (int i = 0; i < static_cast<int>(state.plotted_signals.size()); ++i) {
+                    const auto& ps = state.plotted_signals[i];
+                    bool checked = s_input_sel[i] != 0;
+                    if (ImGui::Checkbox(ps.display_name().c_str(), &checked))
+                        s_input_sel[i] = checked ? 1 : 0;
+                }
+
+                ImGui::InputText("Name", s_name_buf, sizeof(s_name_buf));
+                ImGui::Separator();
+
+                if (ImGui::Button("Create")) {
+                    std::vector<std::shared_ptr<gnc_viz::SignalBuffer>> inputs;
+                    for (int i = 0; i < static_cast<int>(state.plotted_signals.size()); ++i) {
+                        if (s_input_sel[i] && state.plotted_signals[i].buffer)
+                            inputs.push_back(state.plotted_signals[i].buffer);
+                    }
+
+                    if (!inputs.empty() && s_op_sel < static_cast<int>(op_keys.size())) {
+                        auto op = op_reg.create(op_keys[s_op_sel]);
+                        gnc_viz::DerivedSignal ds;
+                        ds.id = std::string("derived_") +
+                                std::to_string(state.plotted_signals.size());
+                        ds.display_name = s_name_buf;
+                        ds.operation    = std::move(op);
+                        ds.inputs       = std::move(inputs);
+
+                        auto result = ds.compute();
+                        if (result) {
+                            gnc_viz::PlottedSignal ps;
+                            ps.sim_id       = "derived";
+                            ps.meta.h5_path = ds.display_name;
+                            ps.meta.name    = ds.display_name;
+                            ps.buffer       = *result;
+                            ps.alias        = ds.display_name;
+                            ps.color_rgba   = state.colors.assign(ds.id);
+                            state.plotted_signals.push_back(std::move(ps));
+                        } else {
+                            GNC_LOG_WARN("Derived signal compute failed: {}",
+                                         result.error().message);
+                        }
+                    }
+
+                    s_input_sel.clear();
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel")) {
+                    s_input_sel.clear();
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
+
             ImGui::Separator();
         }
 
@@ -470,6 +551,22 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
                 engine.switch_to(type_id, state);
             if (is_active)
                 ImGui::PopStyleColor();
+            ImGui::SameLine();
+        }
+        ImGui::Dummy(ImVec2(8.0f, 0.0f));
+        ImGui::SameLine();
+
+        // ── Tool toolbar ──────────────────────────────────────────────────────
+        ImGui::TextDisabled("Tools:");
+        ImGui::SameLine();
+        for (const auto& tool_id : state.tool_manager.available_tools()) {
+            const bool active = state.tool_manager.is_active(tool_id);
+            if (active) ImGui::PushStyleColor(ImGuiCol_Button,
+                            ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+            std::string btn_label = tool_id + "##tool";
+            if (ImGui::SmallButton(btn_label.c_str()))
+                state.tool_manager.activate(tool_id);
+            if (active) ImGui::PopStyleColor();
             ImGui::SameLine();
         }
         ImGui::Dummy(ImVec2(8.0f, 0.0f));

@@ -17,10 +17,17 @@ add_executable(gnc_viz_tests
     test_time_aligner.cpp
     test_axis_manager.cpp
     test_derived_signal.cpp
+    test_tool_manager.cpp
+    # ToolManager sources (depend on ImGui/ImPlot but no context needed for registry tests)
+    ../app/tool_manager.cpp
+    ../app/annotation_tool.cpp
+    ../app/ruler_tool.cpp
 )
 
 target_link_libraries(gnc_viz_tests PRIVATE
     gnc_viz_lib
+    imgui_lib
+    implot_lib
     Catch2::Catch2WithMain
 )
 

@@ -9,6 +9,9 @@ add_executable(gnc_viz
     plot_engine.cpp
     simulation_list_ui.cpp
     signal_tree_widget.cpp
+    tool_manager.cpp
+    annotation_tool.cpp
+    ruler_tool.cpp
 )
 
 target_compile_definitions(gnc_viz PRIVATE
