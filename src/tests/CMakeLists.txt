@@ -8,6 +8,8 @@ add_executable(gnc_viz_tests
     test_app_state.cpp
     test_config.cpp
     test_interfaces.cpp
+    test_registry.cpp
+    test_signal_metadata.cpp
 )
 
 target_link_libraries(gnc_viz_tests PRIVATE

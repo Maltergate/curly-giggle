@@ -3,6 +3,8 @@ add_library(gnc_viz_lib STATIC
     error.cpp
     log.cpp
     config.cpp
+    signal_metadata.cpp
+    session.cpp
 )
 
 target_include_directories(gnc_viz_lib PUBLIC
