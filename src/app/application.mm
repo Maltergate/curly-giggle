@@ -21,6 +21,12 @@
 #include "gnc_viz/app_state.hpp"
 #include "gnc_viz/log.hpp"
 #include "gnc_viz/version.hpp"
+#include "gnc_viz/simulation_list_ui.hpp"
+#include "gnc_viz/signal_tree_widget.hpp"
+#include "gnc_viz/timeseries_plot.hpp"
+#include "gnc_viz/simulation_file.hpp"
+#include "gnc_viz/color_manager.hpp"
+#include "gnc_viz/file_open_dialog.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -29,7 +35,7 @@
 namespace gnc_viz {
 
 // ── forward declarations ───────────────────────────────────────────────────────
-static void render_ui_frame(AppState& state, const ImGuiIO& io);
+static void render_ui_frame(AppState& state, TimeSeriesPlot& plot, const ImGuiIO& io);
 static void draw_vertical_splitter(const char* id, float* width, float avail_w);
 
 // ── PIMPL — holds all ObjC / Metal / GLFW state ───────────────────────────────
@@ -44,6 +50,7 @@ struct Application::Impl {
     AppState state;
     bool     initialized = false;
     Config   config;
+    TimeSeriesPlot plot;
 };
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────────
@@ -184,7 +191,7 @@ void Application::run()
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
-            render_ui_frame(m_impl->state, io);
+            render_ui_frame(m_impl->state, m_impl->plot, io);
 
             ImGui::Render();
             ImGui_ImplMetal_RenderDrawData(ImGui::GetDrawData(), cmdBuf, enc);
@@ -231,7 +238,7 @@ static void draw_vertical_splitter(const char* id, float* width, float avail_w)
 
 // ── Three-pane layout + UI composition ────────────────────────────────────────
 
-static void render_ui_frame(AppState& state, const ImGuiIO& io)
+static void render_ui_frame(AppState& state, TimeSeriesPlot& plot, const ImGuiIO& io)
 {
     ImGuiViewport* vp = ImGui::GetMainViewport();
 
@@ -255,6 +262,21 @@ static void render_ui_frame(AppState& state, const ImGuiIO& io)
     // ── Menu bar ──────────────────────────────────────────────────────────────
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Open…", "Cmd+O")) {
+                auto result = show_open_dialog("Open Simulation File", true, {"h5", "hdf5"});
+                if (result.confirmed) {
+                    static int menu_sim_counter = 0;
+                    for (const auto& p : result.paths) {
+                        const std::string id = "sim" + std::to_string(menu_sim_counter++);
+                        auto sim = std::make_unique<SimulationFile>(id);
+                        if (auto res = sim->open(p); res)
+                            state.simulations.push_back(std::move(sim));
+                        else
+                            GNC_LOG_ERROR("Open failed: {}", res.error().message);
+                    }
+                }
+            }
+            ImGui::Separator();
             if (ImGui::MenuItem("Quit", "Cmd+Q"))
                 state.quit_requested = true;
             ImGui::EndMenu();
@@ -278,15 +300,13 @@ static void render_ui_frame(AppState& state, const ImGuiIO& io)
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
 
-    // ── Left pane: file loader ─────────────────────────────────────────────────
+    // ── Left pane: simulation file manager ────────────────────────────────────
     if (state.panes.file_pane_visible) {
         ImGui::BeginChild("##FilesPane",
                           ImVec2(state.panes.file_pane_width, avail_h),
                           ImGuiChildFlags_None);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 8.0f));
-        ImGui::TextUnformatted("Simulations");
-        ImGui::Separator();
-        ImGui::TextDisabled("Drop .h5 files here\nor use File → Open");
+        render_simulation_list(state);
         ImGui::PopStyleVar();
         ImGui::EndChild();
         ImGui::SameLine(0.0f, 0.0f);
@@ -295,15 +315,13 @@ static void render_ui_frame(AppState& state, const ImGuiIO& io)
         ImGui::SameLine(0.0f, 0.0f);
     }
 
-    // ── Middle pane: signal manager ────────────────────────────────────────────
+    // ── Middle pane: signal tree ───────────────────────────────────────────────
     if (state.panes.signal_pane_visible) {
         ImGui::BeginChild("##SignalsPane",
                           ImVec2(state.panes.signal_pane_width, avail_h),
                           ImGuiChildFlags_None);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 8.0f));
-        ImGui::TextUnformatted("Signals");
-        ImGui::Separator();
-        ImGui::TextDisabled("Select a simulation to\nbrowse its signals.");
+        render_signal_tree(state);
         ImGui::PopStyleVar();
         ImGui::EndChild();
         ImGui::SameLine(0.0f, 0.0f);
@@ -312,15 +330,52 @@ static void render_ui_frame(AppState& state, const ImGuiIO& io)
         ImGui::SameLine(0.0f, 0.0f);
     }
 
-    // ── Right pane: plot area (fills remaining width) ──────────────────────────
-    ImGui::BeginChild("##PlotPane", ImVec2(-1.0f, avail_h), ImGuiChildFlags_None);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 8.0f));
-    ImGui::TextUnformatted("Plot Area");
-    ImGui::Separator();
-    ImGui::TextDisabled("Add signals from the Signals pane to plot them here.");
-    ImGui::Text("GNC Viz %s  |  Metal + Dear ImGui", gnc_viz::version());
-    ImGui::PopStyleVar();
-    ImGui::EndChild();
+    // ── Right pane: plot area ──────────────────────────────────────────────────
+    {
+        const float plot_w = ImGui::GetContentRegionAvail().x;
+        const float plot_h = avail_h;
+        ImGui::BeginChild("##PlotPane", ImVec2(plot_w, plot_h), ImGuiChildFlags_None);
+
+        // Plotted-signal list (simple list at top of plot pane, Phase 6 will expand this)
+        if (!state.plotted_signals.empty()) {
+            for (int idx = 0; idx < static_cast<int>(state.plotted_signals.size()); ) {
+                auto& ps = state.plotted_signals[idx];
+                ImGui::PushID(ps.plot_key().c_str());
+
+                // Color swatch
+                float col[4];
+                ColorManager::to_float4(ps.color_rgba, col);
+                if (ImGui::ColorButton("##col", ImVec4(col[0],col[1],col[2],col[3]),
+                                       ImGuiColorEditFlags_NoTooltip, ImVec2(14, 14)))
+                {}
+                ImGui::SameLine();
+                // Visibility toggle
+                ImGui::Checkbox("##vis", &ps.visible);
+                ImGui::SameLine();
+                // Label
+                ImGui::TextUnformatted(ps.display_name().c_str());
+                ImGui::SameLine();
+                ImGui::TextDisabled("(%s)", ps.sim_id.c_str());
+                ImGui::SameLine();
+                // Remove button
+                if (ImGui::SmallButton("✕##rm")) {
+                    state.colors.release(ps.plot_key());
+                    state.plotted_signals.erase(state.plotted_signals.begin() + idx);
+                    ImGui::PopID();
+                    continue;
+                }
+                ImGui::PopID();
+                ++idx;
+            }
+            ImGui::Separator();
+        }
+
+        // Time-series plot fills remaining height
+        const float remaining_h = ImGui::GetContentRegionAvail().y;
+        plot.render(state, -1.0f, remaining_h > 20.0f ? remaining_h : -1.0f);
+
+        ImGui::EndChild();
+    }
 
     ImGui::PopStyleVar();  // ItemSpacing
     ImGui::End();

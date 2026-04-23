@@ -37,10 +37,9 @@ TEST_CASE("quit_requested can be set", "[app_state]")
     REQUIRE(s.quit_requested == true);
 }
 
-TEST_CASE("AppState is copyable", "[app_state]")
+TEST_CASE("AppState holds simulations and plotted_signals", "[app_state]")
 {
-    AppState a;
-    a.panes.file_pane_width = 400.0f;
-    AppState b = a;
-    REQUIRE(b.panes.file_pane_width == 400.0f);
+    AppState s;
+    REQUIRE(s.simulations.empty());
+    REQUIRE(s.plotted_signals.empty());
 }

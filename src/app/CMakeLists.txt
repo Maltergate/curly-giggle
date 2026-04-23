@@ -4,6 +4,8 @@ add_executable(gnc_viz
     collapsible_pane.cpp
     file_open_dialog.mm
     timeseries_plot.cpp
+    simulation_list_ui.cpp
+    signal_tree_widget.cpp
 )
 
 target_compile_definitions(gnc_viz PRIVATE

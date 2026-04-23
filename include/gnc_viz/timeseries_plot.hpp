@@ -26,8 +26,8 @@ public:
     [[nodiscard]] std::string_view id() const noexcept override
     { return "timeseries"; }
 
-    void render(const AppState& state, float width, float height) override;
-    void on_activate(const AppState& state) override;
+    void render(AppState& state, float width, float height) override;
+    void on_activate(AppState& state) override;
     void on_deactivate() override;
 
 private:

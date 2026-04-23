@@ -8,6 +8,7 @@ add_library(gnc_viz_lib STATIC
     signal_ops.cpp
     color_manager.cpp
     hdf5_reader.cpp
+    simulation_file.cpp
     session.cpp
 )
 

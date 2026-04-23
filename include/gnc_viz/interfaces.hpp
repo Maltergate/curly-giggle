@@ -48,12 +48,13 @@ public:
     [[nodiscard]] virtual std::string_view id() const noexcept = 0;
 
     /// Render the plot for the current frame.
-    /// @param state  Full application state (read-only for most plot types).
-    /// @param size   Available pixel region for the plot (pass to ImPlot::BeginPlot).
-    virtual void render(const AppState& state, float width, float height) = 0;
+    /// @param state  Full application state. Mutable so plots can lazy-load buffers.
+    /// @param width  Available pixel width for the plot.
+    /// @param height Available pixel height for the plot.
+    virtual void render(AppState& state, float width, float height) = 0;
 
     /// Called when this plot type becomes active.  Reset zoom state, etc.
-    virtual void on_activate(const AppState& /*state*/) {}
+    virtual void on_activate(AppState& /*state*/) {}
 
     /// Called when this plot type is deactivated (another type selected).
     virtual void on_deactivate() {}

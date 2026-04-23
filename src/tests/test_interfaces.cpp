@@ -9,7 +9,7 @@ using namespace gnc_viz;
 struct MockPlotType : IPlotType {
     std::string_view name() const noexcept override { return "Mock Plot"; }
     std::string_view id()   const noexcept override { return "mock"; }
-    void render(const AppState&, float, float) override { rendered = true; }
+    void render(AppState&, float, float) override { rendered = true; }
     bool rendered = false;
 };
 

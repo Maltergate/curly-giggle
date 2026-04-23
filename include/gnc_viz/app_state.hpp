@@ -4,20 +4,17 @@
 //
 // Owns all runtime state. A single AppState instance lives in Application.
 // Every subsystem receives a (const) reference — no globals, no singletons.
-//
-// Fields are organised by phase.  Unimplemented phases leave forward-declared
-// stubs commented out so the header compiles at all phases of development.
 
-#include <vector>
-#include <string>
+#include "gnc_viz/color_manager.hpp"
+#include "gnc_viz/plotted_signal.hpp"
+#include "gnc_viz/simulation_file.hpp"
+
 #include <cstdint>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace gnc_viz {
-
-// ── Forward declarations (types added as their phases are implemented) ─────────
-// class SimulationFile;   // Phase 2
-// struct PlottedSignal;   // Phase 8
-// struct AxisConfig;      // Phase 8
 
 // ── Pane / layout state ────────────────────────────────────────────────────────
 
@@ -39,15 +36,18 @@ struct DebugState {
 // ── Central state struct ───────────────────────────────────────────────────────
 //
 // Rule: subsystems may mutate only their own section of AppState.
-// Pass by AppState& for mutation, const AppState& for read-only access.
+// Pass AppState& for mutation, const AppState& for read-only access.
 
 struct AppState {
-    // ── Phase 2: Data layer ────────────────────────────────────────────────────
-    // std::vector<std::unique_ptr<SimulationFile>> simulations;
+    // ── Data layer ─────────────────────────────────────────────────────────────
+    std::vector<std::unique_ptr<SimulationFile>> simulations;
 
-    // ── Phase 8: Plot layer ────────────────────────────────────────────────────
-    // std::vector<PlottedSignal> plotted_signals;
-    // std::vector<AxisConfig>    y_axes;
+    // ── Plot layer ─────────────────────────────────────────────────────────────
+    std::vector<PlottedSignal> plotted_signals;
+    // std::vector<AxisConfig> y_axes;  // Phase 8
+
+    // ── Color management ──────────────────────────────────────────────────────
+    ColorManager colors;
 
     // ── UI / layout ───────────────────────────────────────────────────────────
     PaneState  panes;

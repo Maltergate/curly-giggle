@@ -1,0 +1,81 @@
+#pragma once
+
+// ── SimulationFile — owns one open HDF5 file ──────────────────────────────────
+//
+// Wraps HDF5Reader with:
+//   - A unique sim_id (assigned at construction)
+//   - A user-chosen time axis path (auto-suggested, editable from the UI)
+//   - Weak-ptr cache: buffers are owned by PlottedSignal; this keeps them
+//     alive as long as any PlottedSignal holds a shared_ptr to them.
+//
+// Usage:
+//   auto sim = std::make_unique<SimulationFile>("sim0");
+//   sim->open("/path/to/result.h5");
+//   sim->set_time_axis("/time_utc");     // or leave empty for index axis
+//   auto buf = sim->load_signal(meta);
+
+#include "gnc_viz/error.hpp"
+#include "gnc_viz/hdf5_reader.hpp"
+#include "gnc_viz/signal_buffer.hpp"
+#include "gnc_viz/signal_metadata.hpp"
+
+#include <filesystem>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace gnc_viz {
+
+class SimulationFile {
+public:
+    explicit SimulationFile(std::string sim_id);
+    ~SimulationFile() = default;
+
+    SimulationFile(const SimulationFile&)            = delete;
+    SimulationFile& operator=(const SimulationFile&) = delete;
+    SimulationFile(SimulationFile&&)                  = default;
+    SimulationFile& operator=(SimulationFile&&)       = default;
+
+    /// Open the file and enumerate all datasets.
+    /// On success, is_open() returns true and signals() is populated.
+    gnc::Result<void> open(const std::filesystem::path& path);
+
+    /// Close the file and release all cached buffers.
+    void close();
+
+    [[nodiscard]] bool is_open() const noexcept;
+
+    [[nodiscard]] const std::string&           sim_id()   const noexcept { return m_sim_id; }
+    [[nodiscard]] const std::filesystem::path& path()     const noexcept { return m_path; }
+
+    /// The user-selected time axis H5 path.
+    /// Empty string = synthesise 0-based sample index axis.
+    [[nodiscard]] const std::string& time_axis() const noexcept { return m_time_axis; }
+    void set_time_axis(std::string p) { m_time_axis = std::move(p); }
+
+    /// All datasets enumerated from the file (includes candidate time axes).
+    [[nodiscard]] const std::vector<SignalMetadata>& signals() const noexcept { return m_signals; }
+
+    /// Heuristic time-axis candidates returned by suggest_time_axes().
+    [[nodiscard]] const std::vector<std::string>& suggested_time_axes() const noexcept
+    { return m_time_hints; }
+
+    /// Load (or return from cache) the buffer for a signal.
+    /// Uses the current time_axis() to set the time vector.
+    gnc::Result<std::shared_ptr<SignalBuffer>> load_signal(const SignalMetadata& meta);
+
+    /// Release all cached weak_ptrs (does not free buffers held by callers).
+    void evict_cache();
+
+private:
+    std::string                                        m_sim_id;
+    std::filesystem::path                              m_path;
+    HDF5Reader                                         m_reader;
+    std::string                                        m_time_axis;
+    std::vector<SignalMetadata>                        m_signals;
+    std::vector<std::string>                           m_time_hints;
+    std::map<std::string, std::weak_ptr<SignalBuffer>> m_cache;
+};
+
+} // namespace gnc_viz

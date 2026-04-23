@@ -10,13 +10,13 @@ using namespace gnc_viz;
 struct AlphaPlot : IPlotType {
     std::string_view name() const noexcept override { return "Alpha"; }
     std::string_view id()   const noexcept override { return "alpha"; }
-    void render(const AppState&, float, float) override {}
+    void render(AppState&, float, float) override {}
 };
 
 struct BetaPlot : IPlotType {
     std::string_view name() const noexcept override { return "Beta"; }
     std::string_view id()   const noexcept override { return "beta"; }
-    void render(const AppState&, float, float) override {}
+    void render(AppState&, float, float) override {}
 };
 
 struct AlphaOp : ISignalOperation {
