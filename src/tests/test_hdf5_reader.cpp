@@ -172,17 +172,18 @@ TEST_CASE("HDF5Reader: open + close") {
     REQUIRE(!r.is_open());
 }
 
-TEST_CASE("HDF5Reader: enumerate_signals excludes time") {
+TEST_CASE("HDF5Reader: enumerate_signals includes all datasets (including time)") {
     std::string path = make_test_h5("enumerate");
     gnc_viz::HDF5Reader r;
     REQUIRE(r.open(path));
     auto res = r.enumerate_signals("sim1");
     REQUIRE(res);
     const auto& sigs = *res;
-    REQUIRE(sigs.size() == 2);  // altitude + velocity, NOT time
+    REQUIRE(sigs.size() == 3);  // time + altitude + velocity
 
-    bool found_alt = false, found_vel = false;
+    bool found_time = false, found_alt = false, found_vel = false;
     for (const auto& m : sigs) {
+        if (m.name == "time")     { found_time = true; }
         if (m.name == "altitude") {
             found_alt = true;
             CHECK(m.sim_id == "sim1");
@@ -198,8 +199,18 @@ TEST_CASE("HDF5Reader: enumerate_signals excludes time") {
             CHECK(m.shape[1] == 3);
         }
     }
+    REQUIRE(found_time);
     REQUIRE(found_alt);
     REQUIRE(found_vel);
+}
+
+TEST_CASE("HDF5Reader: suggest_time_axes finds time dataset") {
+    std::string path = make_test_h5("suggest_time");
+    gnc_viz::HDF5Reader r;
+    REQUIRE(r.open(path));
+    auto candidates = r.suggest_time_axes();
+    REQUIRE(!candidates.empty());
+    CHECK(candidates[0] == "/time");
 }
 
 TEST_CASE("HDF5Reader: load scalar signal") {
@@ -216,7 +227,11 @@ TEST_CASE("HDF5Reader: load scalar signal") {
         if (m.name == "altitude") { alt_meta = &m; break; }
     REQUIRE(alt_meta != nullptr);
 
-    auto buf_res = r.load_signal(*alt_meta);
+    // Set the time axis explicitly (user would select this in the UI)
+    gnc_viz::SignalMetadata meta_with_time = *alt_meta;
+    meta_with_time.time_path = "/time";
+
+    auto buf_res = r.load_signal(meta_with_time);
     REQUIRE(buf_res);
     auto buf = *buf_res;
     REQUIRE(buf != nullptr);
@@ -243,7 +258,10 @@ TEST_CASE("HDF5Reader: load vector signal") {
         if (m.name == "velocity") { vel_meta = &m; break; }
     REQUIRE(vel_meta != nullptr);
 
-    auto buf_res = r.load_signal(*vel_meta);
+    gnc_viz::SignalMetadata meta_with_time = *vel_meta;
+    meta_with_time.time_path = "/time";
+
+    auto buf_res = r.load_signal(meta_with_time);
     REQUIRE(buf_res);
     auto buf = *buf_res;
     REQUIRE(buf != nullptr);
@@ -254,6 +272,29 @@ TEST_CASE("HDF5Reader: load vector signal") {
     REQUIRE_THAT(buf->at(5, 0), WithinAbs(5.0,  1e-9));
     REQUIRE_THAT(buf->at(5, 1), WithinAbs(10.0, 1e-9));
     REQUIRE_THAT(buf->at(5, 2), WithinAbs(15.0, 1e-9));
+}
+
+TEST_CASE("HDF5Reader: no time_path gives sample-index axis") {
+    using Catch::Matchers::WithinAbs;
+    std::string path = make_test_h5("index_axis");
+    gnc_viz::HDF5Reader r;
+    REQUIRE(r.open(path));
+
+    auto sigs = r.enumerate_signals();
+    REQUIRE(sigs);
+
+    const gnc_viz::SignalMetadata* alt_meta = nullptr;
+    for (const auto& m : *sigs)
+        if (m.name == "altitude") { alt_meta = &m; break; }
+    REQUIRE(alt_meta != nullptr);
+
+    // time_path intentionally left empty
+    auto buf_res = r.load_signal(*alt_meta);
+    REQUIRE(buf_res);
+    auto buf = *buf_res;
+    REQUIRE_THAT(buf->time()[0], WithinAbs(0.0, 1e-9));
+    REQUIRE_THAT(buf->time()[5], WithinAbs(5.0, 1e-9));
+    REQUIRE_THAT(buf->time()[9], WithinAbs(9.0, 1e-9));
 }
 
 TEST_CASE("HDF5Reader: load_signal without open returns error") {

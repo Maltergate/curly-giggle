@@ -4,8 +4,8 @@
 #include <hdf5.h>
 
 #include <cassert>
+#include <cctype>
 #include <cstring>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -39,7 +39,8 @@ static DataType hdf5_to_dtype(hid_t type_id) noexcept
     return DataType::Unknown;
 }
 
-// ── Helper: read 1-D dataset as vector<double> ────────────────────────────────
+// ── Helper: read a 1-D (or Nx1) dataset as vector<double> ────────────────────
+// Accepts shapes (N,) and (N, 1) — both occur in real simulation files.
 
 static gnc::Result<std::vector<double>>
 read_1d_doubles(hid_t file_id, const std::string& ds_path)
@@ -52,16 +53,18 @@ read_1d_doubles(hid_t file_id, const std::string& ds_path)
 
     hid_t space = H5Dget_space(ds);
     int   ndims = H5Sget_simple_extent_ndims(space);
-    if (ndims != 1) {
-        H5Sclose(space); H5Dclose(ds);
-        return gnc::make_error<std::vector<double>>(
-            gnc::ErrorCode::InvalidArgument,
-            ds_path + " is not 1-D");
-    }
-
-    hsize_t dims[1] = {0};
+    hsize_t dims[2] = {0, 1};
     H5Sget_simple_extent_dims(space, dims, nullptr);
     H5Sclose(space);
+
+    // Accept (N,) and (N, 1)
+    const bool ok = (ndims == 1) || (ndims == 2 && dims[1] == 1);
+    if (!ok) {
+        H5Dclose(ds);
+        return gnc::make_error<std::vector<double>>(
+            gnc::ErrorCode::InvalidArgument,
+            ds_path + " is not 1-D (shape must be (N,) or (N,1))");
+    }
 
     std::vector<double> out(dims[0]);
     const herr_t err = H5Dread(ds, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
@@ -97,6 +100,8 @@ static std::string read_string_attr(hid_t obj_id, const char* attr_name)
 }
 
 // ── Enumerate visitor ─────────────────────────────────────────────────────────
+// Enumerates ALL datasets — no filtering. The caller decides what is a time
+// axis and what is a signal.
 
 struct EnumContext {
     hid_t                     file_id;
@@ -109,11 +114,8 @@ static herr_t enum_visitor(hid_t /*loc_id*/, const char* name,
 {
     auto* ctx = static_cast<EnumContext*>(opaque);
 
-    // Skip the global time axis
-    if (std::strcmp(name, "time") == 0) return 0;
-
     const hid_t ds = H5Dopen2(ctx->file_id, name, H5P_DEFAULT);
-    if (ds < 0) return 0;   // not a dataset → skip
+    if (ds < 0) return 0;   // not a dataset (e.g. group) → skip
 
     hid_t space = H5Dget_space(ds);
     hid_t dtype = H5Dget_type(ds);
@@ -131,7 +133,7 @@ static herr_t enum_visitor(hid_t /*loc_id*/, const char* name,
     meta.sim_id  = ctx->sim_id;
     meta.h5_path = std::string("/") + name;  // ensure leading slash
 
-    // basename = last component
+    // Display name = last path component
     std::string s(name);
     meta.name = s.substr(s.rfind('/') + 1);
 
@@ -141,12 +143,55 @@ static herr_t enum_visitor(hid_t /*loc_id*/, const char* name,
         meta.shape.push_back(static_cast<std::size_t>(dims[1]));
 
     meta.units = read_string_attr(ds, "units");
+    // time_path intentionally left empty — set by caller after user selects it
 
     H5Tclose(dtype);
     H5Sclose(space);
     H5Dclose(ds);
 
     ctx->out->push_back(std::move(meta));
+    return 0;
+}
+
+// ── suggest_time_axes visitor ─────────────────────────────────────────────────
+
+struct TimeHintContext {
+    hid_t                    file_id;
+    std::vector<std::string>* candidates; // ordered best-first
+};
+
+static bool name_looks_like_time(const std::string& name) noexcept
+{
+    // case-insensitive check for the leaf name
+    std::string leaf = name.substr(name.rfind('/') + 1);
+    for (char& c : leaf) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return leaf == "t" || leaf == "time" ||
+           leaf.find("time") != std::string::npos;
+}
+
+static herr_t time_hint_visitor(hid_t /*loc_id*/, const char* name,
+                                 const H5L_info2_t* /*linfo*/, void* opaque)
+{
+    auto* ctx = static_cast<TimeHintContext*>(opaque);
+
+    const hid_t ds = H5Dopen2(ctx->file_id, name, H5P_DEFAULT);
+    if (ds < 0) return 0;
+
+    hid_t space = H5Dget_space(ds);
+    hid_t dtype = H5Dget_type(ds);
+    const int ndims = H5Sget_simple_extent_ndims(space);
+    hsize_t dims[2] = {0, 1};
+    H5Sget_simple_extent_dims(space, dims, nullptr);
+    const H5T_class_t cls = H5Tget_class(dtype);
+
+    H5Tclose(dtype); H5Sclose(space); H5Dclose(ds);
+
+    // Must be float, 1-D or (N,1), and have a time-like name
+    const bool is_float = (cls == H5T_FLOAT);
+    const bool right_shape = (ndims == 1) || (ndims == 2 && dims[1] == 1);
+    if (is_float && right_shape && name_looks_like_time(name))
+        ctx->candidates->push_back(std::string("/") + name);
+
     return 0;
 }
 
@@ -215,8 +260,19 @@ HDF5Reader::enumerate_signals(const std::string& sim_id) const
         return gnc::make_error<std::vector<SignalMetadata>>(
             gnc::ErrorCode::IOError, "H5Lvisit2 failed");
 
-    GNC_LOG_DEBUG("HDF5: enumerated {} signals in {}", out.size(), m_impl->path.string());
+    GNC_LOG_DEBUG("HDF5: enumerated {} datasets in {}", out.size(), m_impl->path.string());
     return out;
+}
+
+std::vector<std::string> HDF5Reader::suggest_time_axes() const
+{
+    if (!is_open()) return {};
+
+    std::vector<std::string> candidates;
+    TimeHintContext ctx{m_impl->file_id, &candidates};
+    H5Lvisit2(m_impl->file_id, H5_INDEX_NAME, H5_ITER_NATIVE,
+               time_hint_visitor, &ctx);
+    return candidates;
 }
 
 gnc::Result<std::shared_ptr<SignalBuffer>>
@@ -226,14 +282,6 @@ HDF5Reader::load_signal(const SignalMetadata& meta) const
         return gnc::make_error<std::shared_ptr<SignalBuffer>>(
             gnc::ErrorCode::InvalidState, "File not open");
 
-    // Load time axis
-    const std::string time_path = meta.time_path.empty() ? "/time" : meta.time_path;
-    auto time_res = read_1d_doubles(m_impl->file_id, time_path);
-    if (!time_res)
-        return gnc::make_error<std::shared_ptr<SignalBuffer>>(
-            time_res.error().code,
-            "Time axis: " + time_res.error().message);
-
     // Open signal dataset
     const hid_t ds = H5Dopen2(m_impl->file_id, meta.h5_path.c_str(), H5P_DEFAULT);
     if (ds < 0)
@@ -241,16 +289,23 @@ HDF5Reader::load_signal(const SignalMetadata& meta) const
             gnc::ErrorCode::NotFound,
             "Dataset not found: " + meta.h5_path);
 
-    hid_t space  = H5Dget_space(ds);
-    int   ndims  = H5Sget_simple_extent_ndims(space);
+    hid_t space = H5Dget_space(ds);
+    int   ndims = H5Sget_simple_extent_ndims(space);
     hsize_t dims[2] = {0, 1};
     H5Sget_simple_extent_dims(space, dims, nullptr);
     H5Sclose(space);
 
-    const std::size_t N      = static_cast<std::size_t>(dims[0]);
-    const std::size_t n_comp = ndims == 2 ? static_cast<std::size_t>(dims[1]) : 1u;
-    std::vector<double> values(N * n_comp);
+    const std::size_t N = static_cast<std::size_t>(dims[0]);
 
+    // Shape normalisation:
+    //   (N,)   → 1 component
+    //   (N, 1) → 1 component  (squeeze trailing singleton)
+    //   (N, K) → K components
+    const std::size_t n_comp = (ndims == 2 && dims[1] > 1)
+                                 ? static_cast<std::size_t>(dims[1])
+                                 : 1u;
+
+    std::vector<double> values(N * n_comp);
     const herr_t err = H5Dread(ds, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
                                 H5P_DEFAULT, values.data());
     H5Dclose(ds);
@@ -259,8 +314,24 @@ HDF5Reader::load_signal(const SignalMetadata& meta) const
             gnc::ErrorCode::IOError,
             "H5Dread failed for " + meta.h5_path);
 
+    // Time axis: use meta.time_path if set; otherwise synthesise sample index
+    std::vector<double> time_vec;
+    if (!meta.time_path.empty()) {
+        auto time_res = read_1d_doubles(m_impl->file_id, meta.time_path);
+        if (!time_res)
+            return gnc::make_error<std::shared_ptr<SignalBuffer>>(
+                time_res.error().code,
+                "Time axis '" + meta.time_path + "': " + time_res.error().message);
+        time_vec = std::move(*time_res);
+    } else {
+        // No time axis selected — use 0-based sample index
+        time_vec.resize(N);
+        for (std::size_t i = 0; i < N; ++i)
+            time_vec[i] = static_cast<double>(i);
+    }
+
     auto buf = SignalBuffer::make_vector(
-        meta, std::move(*time_res), std::move(values), n_comp);
+        meta, std::move(time_vec), std::move(values), n_comp);
     return buf;
 }
 

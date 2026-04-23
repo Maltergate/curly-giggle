@@ -2,23 +2,26 @@
 
 // ── HDF5Reader — enumerate and load HDF5 datasets ─────────────────────────────
 //
-// Opens an HDF5 file and provides two operations:
-//   1. enumerate_signals() — recursively walks all datasets, returns metadata
-//      WITHOUT loading any data.  Fast; suitable for populating the signal tree.
-//   2. load_signal()        — reads one dataset into a SignalBuffer.
+// Intentionally generic: makes NO assumptions about file layout.
+//
+//   1. enumerate_signals() — walks all datasets, returns metadata for every
+//      dataset found (including any time axis).  The caller decides which
+//      dataset is the time axis.
+//
+//   2. suggest_time_axes() — heuristic scan for datasets that look like a time
+//      axis (1-D float, name contains "time"/"t").  Returns candidate paths
+//      ordered by likelihood.  These are suggestions only; the user chooses.
+//
+//   3. load_signal()        — reads one dataset.  The time axis path must be
+//      supplied explicitly via SignalMetadata::time_path, or synthesised from
+//      sample index if left empty.
 //
 // Thread safety:
-//   - enumerate_signals() and load_signal() may be called from any thread,
-//     but NOT concurrently.  The caller is responsible for serialising access.
-//   - Intended usage: spawn a std::jthread; call from that thread only.
+//   enumerate_signals(), suggest_time_axes(), and load_signal() may be called
+//   from any thread, but NOT concurrently.
 //
 // Error handling:
 //   All public methods return gnc::Result<T> — never throw.
-//
-// HDF5 naming convention expected by this reader:
-//   - The file should contain a "/time" dataset (1-D, float64) as global time axis.
-//   - Other datasets are signals.  Their shape is {N} (scalar) or {N, K} (vector).
-//   - Each dataset may have a "units" attribute (string).
 
 #include "gnc_viz/error.hpp"
 #include "gnc_viz/signal_metadata.hpp"
@@ -36,43 +39,45 @@ public:
     HDF5Reader();
     ~HDF5Reader();
 
-    // non-copyable (HDF5 handles are not copyable)
     HDF5Reader(const HDF5Reader&)            = delete;
     HDF5Reader& operator=(const HDF5Reader&) = delete;
-
-    // movable
     HDF5Reader(HDF5Reader&&) noexcept;
     HDF5Reader& operator=(HDF5Reader&&) noexcept;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
-    /// Open an HDF5 file.  Returns an error if the file cannot be opened.
     [[nodiscard]] gnc::VoidResult open(const std::filesystem::path& path);
-
-    /// Close the file and release all HDF5 handles.
     void close() noexcept;
-
-    /// True if a file is currently open.
     [[nodiscard]] bool is_open() const noexcept;
+    [[nodiscard]] const std::filesystem::path& path() const noexcept;
 
     // ── Signal enumeration ────────────────────────────────────────────────────
 
-    /// Recursively enumerate all datasets in the file.
-    /// The "/time" dataset is excluded from the result.
-    /// @param sim_id   Tag set on each SignalMetadata::sim_id field.
+    /// Enumerate every dataset in the file.  No dataset is excluded.
+    /// @param sim_id  Tag written to each SignalMetadata::sim_id field.
     [[nodiscard]] gnc::Result<std::vector<SignalMetadata>>
     enumerate_signals(const std::string& sim_id = "") const;
 
+    /// Return paths of datasets that look like a time axis, best-first:
+    ///   - 1-D float dataset whose name contains "time" or equals "t"
+    ///   - 2-D float dataset with shape (N, 1) and a time-like name
+    /// The list may be empty if no candidates are found.
+    [[nodiscard]] std::vector<std::string> suggest_time_axes() const;
+
     // ── Signal loading ────────────────────────────────────────────────────────
 
-    /// Load a signal dataset into a SignalBuffer.
-    /// Also loads the time axis referenced by meta.time_path (default: "/time").
+    /// Load a dataset into a SignalBuffer.
+    ///
+    /// Time axis resolution (in order):
+    ///   1. meta.time_path if non-empty  → load that dataset as time
+    ///   2. Otherwise                    → synthesise 0, 1, 2, … (sample index)
+    ///
+    /// Shape normalisation:
+    ///   - (N,)   → scalar signal, 1 component
+    ///   - (N, 1) → scalar signal, 1 component  (squeeze trailing 1)
+    ///   - (N, K) → vector signal, K components  (K > 1)
     [[nodiscard]] gnc::Result<std::shared_ptr<SignalBuffer>>
     load_signal(const SignalMetadata& meta) const;
-
-    // ── File info ─────────────────────────────────────────────────────────────
-
-    [[nodiscard]] const std::filesystem::path& path() const noexcept;
 
 private:
     struct Impl;
@@ -80,3 +85,4 @@ private:
 };
 
 } // namespace gnc_viz
+
