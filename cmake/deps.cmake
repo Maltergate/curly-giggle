@@ -114,14 +114,16 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/extras")
 
-# ── HDF5 (required: brew install hdf5) ────────────────────────────────────────
-# Only the C API is used; we wrap it in a C++ class (src/lib/io/hdf5_reader.*).
-find_package(HDF5 COMPONENTS C QUIET)
+# ── HDF5 (system dependency: brew install hdf5) ────────────────────────────────
+# Only the C API is used. The C API is stable across all 1.x releases so any
+# brew-installed 1.8+ is compatible. No risk of version clashes.
+find_package(HDF5 1.8 COMPONENTS C QUIET)
 if(HDF5_FOUND)
     message(STATUS "HDF5 found: ${HDF5_VERSION} at ${HDF5_INCLUDE_DIRS}")
 else()
-    message(WARNING
-        "HDF5 not found. HDF5-dependent targets will be disabled.\n"
-        "Install with: brew install hdf5"
+    message(FATAL_ERROR
+        "HDF5 not found (need >= 1.8, C component).\n"
+        "Install with:  brew install hdf5\n"
+        "Then re-run:   cmake -B build"
     )
 endif()

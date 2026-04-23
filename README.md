@@ -31,10 +31,12 @@ files from GNC (Guidance, Navigation & Control) spacecraft simulations.
 | Xcode Command Line Tools | 15+ | `xcode-select --install` |
 | Apple Clang | 21+ (Xcode 16+) | C++23 `std::expected`, `std::format` |
 | CMake | 3.25+ | `brew install cmake` |
-| HDF5 | 1.14+ | `brew install hdf5` ← **only manual dep** |
+| HDF5 | 1.8+ | `brew install hdf5` ← **only external dep** |
 
-All other libraries (Dear ImGui, ImPlot, GLFW, spdlog, nlohmann-json, Catch2) are fetched
-automatically via CMake `FetchContent` on first build — no extra `brew install` needed.
+HDF5 is the only thing you need to install manually.  The C API has been stable
+across all 1.x releases (no breaking changes since 2003), so `brew upgrade hdf5`
+will never break the build.  All other libraries are fetched and compiled
+automatically by CMake on first build.
 
 ### Linux (not yet tested)
 
