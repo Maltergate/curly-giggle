@@ -458,6 +458,13 @@ static void render_ui_frame(AppState& state, TimeSeriesPlot& plot, const ImGuiIO
             ImGui::Separator();
         }
 
+        // ── Fit toolbar ───────────────────────────────────────────────────────
+        if (ImGui::SmallButton("Fit All"))  plot.fit_to_data();
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Fit X"))    plot.fit_x_only();
+        ImGui::SameLine();
+        ImGui::Dummy(ImVec2(0, 0));  // flush sameline
+
         // Time-series plot fills remaining height
         const float remaining_h = ImGui::GetContentRegionAvail().y;
         plot.render(state, -1.0f, remaining_h > 20.0f ? remaining_h : -1.0f);

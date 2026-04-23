@@ -1,18 +1,15 @@
 #pragma once
 
-// ── TimeSeriesPlot — minimal IPlotType for time-series line rendering ─────────
+// ── TimeSeriesPlot — Phase 8/9 IPlotType for time-series line rendering ───────
 //
-// Renders all PlottedSignals from AppState as colored lines on a single ImPlot.
-// This is the "walking-skeleton" plot type: proves the end-to-end data flow
-// before multi-Y-axis, zoom, and other Phase 8+ features are added.
+// Renders all PlottedSignals from AppState as colored lines on an ImPlot.
 //
-// Features (this phase):
-//   - Single Y-axis
-//   - One line per plotted signal, colored from AppState/ColorManager
-//   - Basic hover tooltip (time + value)
-//   - No axis labels, no legend formatting beyond signal alias
-//
-// TODO Phase 8: replace with TimeSeriesPlotFull (multi-Y-axis via AxisManager)
+// Features (Phase 8/9):
+//   - Multi-Y-axis rendering via AxisManager (Y1/Y2/Y3 with SetupAxis/SetAxes)
+//   - Axis labels from AxisConfig.label; AuxDefault flags for secondary axes
+//   - Fit All / Fit X buttons trigger ImPlotAxisFlags_AutoFit next frame
+//   - Crosshair: vertical line + interpolated-value tooltip on hover
+//   - Legend positioned NorthEast via SetupLegend
 
 #include "gnc_viz/interfaces.hpp"
 
@@ -30,8 +27,14 @@ public:
     void on_activate(AppState& state) override;
     void on_deactivate() override;
 
+    /// Trigger auto-fit on both X and all Y axes next frame.
+    void fit_to_data()  { m_fit_on_next_frame  = true; }
+    /// Trigger auto-fit on X axis only next frame.
+    void fit_x_only()   { m_fit_x_on_next_frame = true; }
+
 private:
-    bool m_fit_on_next_frame = true;
+    bool m_fit_on_next_frame   = true;
+    bool m_fit_x_on_next_frame = false;
 };
 
 } // namespace gnc_viz
