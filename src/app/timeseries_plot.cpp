@@ -177,21 +177,44 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
     if (m_fit_on_next_frame)  m_fit_on_next_frame  = false;
     if (m_fit_x_on_next_frame) m_fit_x_on_next_frame = false;
 
+    // ── Per-frame view info — used for culling + decimation ───────────────────
+    // GetPlotLimits and GetPlotSize are valid after BeginPlot + SetupAxis.
+    const ImPlotRect view  = ImPlot::GetPlotLimits(ImAxis_X1, ImAxis_Y1);
+    const float      vt0   = static_cast<float>(view.Min().x);
+    const float      vt1   = static_cast<float>(view.Max().x);
+    // Number of horizontal pixels in the plot area — caps how many points
+    // are meaningful to render (1 sample per pixel is already overkill).
+    const int        px_w  = std::max(2, (int)ImPlot::GetPlotSize().x);
+
     // ── Draw signals ──────────────────────────────────────────────────────────
     for (const auto& ps : state.plotted_signals) {
         if (!ps.visible || !ps.buffer || !ps.buffer->is_loaded()) continue;
         if (ps.time_cache_f.empty() || ps.component_cache.empty()) continue;
 
+        // ── Visible-range culling: binary-search in the float time cache ──────
+        const float* t_arr = ps.time_cache_f.data();
+        const int    N_f   = static_cast<int>(ps.time_cache_f.size());
+        // +1 sample of padding on each side so the line extends to the view edge.
+        const int i0 = std::max(0,     (int)(std::lower_bound(t_arr, t_arr+N_f, vt0)
+                                             - t_arr) - 1);
+        const int i1 = std::min(N_f-1, (int)(std::upper_bound(t_arr, t_arr+N_f, vt1)
+                                             - t_arr));
+        const int vis_n = i1 - i0 + 1;
+        if (vis_n <= 0) continue;
+
+        // ── Stride decimation: never render more than 2× the plot width ───────
+        // stride_n = 1 when zoomed in (full resolution); increases at zoom-out.
+        const int stride_n = std::max(1, vis_n / (2 * px_w));
+        const int draw_n   = (vis_n + stride_n - 1) / stride_n;
+
         ImPlotSpec spec;
         spec.LineColor = unpack_rgba(ps.color_rgba);
-
-        // ── All data comes from pre-built float caches (zero per-frame alloc) ──
-        const float* t   = ps.time_cache_f.data();
-        const int    N_f = static_cast<int>(ps.time_cache_f.size());
+        spec.Stride    = stride_n * (int)sizeof(float);
 
         ImPlot::SetAxes(ImAxis_X1, to_imaxis(ps.y_axis));
 
-        const std::string base = make_base_label(state, ps);
+        const std::string base  = make_base_label(state, ps);
+        const float*      t_vis = t_arr + i0;
 
         if (ps.component_index >= 0) {
             const std::size_t c = static_cast<std::size_t>(ps.component_index);
@@ -199,16 +222,19 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
             char label[512];
             std::snprintf(label, sizeof(label), "%s[%d]",
                           base.c_str(), ps.component_index);
-            ImPlot::PlotLine(label, t, ps.component_cache[c].data(), N_f, spec);
-
+            ImPlot::PlotLine(label, t_vis,
+                             ps.component_cache[c].data() + i0, draw_n, spec);
         } else {
             for (std::size_t comp = 0; comp < ps.component_cache.size(); ++comp) {
                 char label[512];
                 if (ps.component_cache.size() == 1)
                     std::snprintf(label, sizeof(label), "%s", base.c_str());
                 else
-                    std::snprintf(label, sizeof(label), "%s[%zu]", base.c_str(), comp);
-                ImPlot::PlotLine(label, t, ps.component_cache[comp].data(), N_f, spec);
+                    std::snprintf(label, sizeof(label), "%s[%zu]",
+                                  base.c_str(), comp);
+                ImPlot::PlotLine(label, t_vis,
+                                 ps.component_cache[comp].data() + i0,
+                                 draw_n, spec);
             }
         }
     }
