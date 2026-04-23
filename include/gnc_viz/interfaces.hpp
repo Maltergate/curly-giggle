@@ -21,7 +21,7 @@
 namespace gnc_viz {
 
 // ── Forward declarations ───────────────────────────────────────────────────────
-struct SignalBuffer;   // Phase 2
+class SignalBuffer;   // Phase 2 — defined in signal_buffer.hpp
 struct AppState;
 
 // ── SignalBuffer stub (placeholder until Phase 2) ──────────────────────────────

@@ -13,6 +13,10 @@ namespace gnc {
 enum class ErrorCode : int {
     // Generic
     Unknown         = 0,
+    NotFound        = 1,
+    InvalidArgument = 2,
+    IOError         = 3,
+    InvalidState    = 4,
     // I/O
     FileNotFound    = 100,
     FileOpenFailed  = 101,

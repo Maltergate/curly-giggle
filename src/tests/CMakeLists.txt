@@ -12,6 +12,8 @@ add_executable(gnc_viz_tests
     test_signal_metadata.cpp
     test_signal_buffer.cpp
     test_color_manager.cpp
+    test_signal_ops.cpp
+    test_hdf5_reader.cpp
 )
 
 target_link_libraries(gnc_viz_tests PRIVATE

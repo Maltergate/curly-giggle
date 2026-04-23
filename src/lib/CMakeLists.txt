@@ -5,7 +5,9 @@ add_library(gnc_viz_lib STATIC
     config.cpp
     signal_metadata.cpp
     signal_buffer.cpp
+    signal_ops.cpp
     color_manager.cpp
+    hdf5_reader.cpp
     session.cpp
 )
 

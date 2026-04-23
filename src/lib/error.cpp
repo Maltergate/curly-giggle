@@ -7,6 +7,10 @@ std::string_view error_code_name(ErrorCode code) noexcept
 {
     switch (code) {
         case ErrorCode::Unknown:           return "Unknown";
+        case ErrorCode::NotFound:          return "NotFound";
+        case ErrorCode::InvalidArgument:   return "InvalidArgument";
+        case ErrorCode::IOError:           return "IOError";
+        case ErrorCode::InvalidState:      return "InvalidState";
         case ErrorCode::FileNotFound:      return "FileNotFound";
         case ErrorCode::FileOpenFailed:    return "FileOpenFailed";
         case ErrorCode::FileReadFailed:    return "FileReadFailed";

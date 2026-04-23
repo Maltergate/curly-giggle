@@ -3,6 +3,7 @@ add_executable(gnc_viz
     application.mm
     collapsible_pane.cpp
     file_open_dialog.mm
+    timeseries_plot.cpp
 )
 
 target_compile_definitions(gnc_viz PRIVATE
