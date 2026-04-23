@@ -47,6 +47,10 @@ void PlotEngine::fit_x_only() {
     if (auto* ts = dynamic_cast<TimeSeriesPlot*>(m_current.get()))
         ts->fit_x_only();
 }
+void PlotEngine::fit_y_only() {
+    if (auto* ts = dynamic_cast<TimeSeriesPlot*>(m_current.get()))
+        ts->fit_y_only();
+}
 
 IPlotType*       PlotEngine::current_type() noexcept       { return m_current.get(); }
 const IPlotType* PlotEngine::current_type() const noexcept { return m_current.get(); }

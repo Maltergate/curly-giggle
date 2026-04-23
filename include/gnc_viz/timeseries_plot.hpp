@@ -40,10 +40,13 @@ public:
     void fit_to_data()  { m_fit_on_next_frame  = true; }
     /// Trigger auto-fit on X axis only next frame.
     void fit_x_only()   { m_fit_x_on_next_frame = true; }
+    /// Trigger auto-fit on all Y axes only next frame.
+    void fit_y_only()   { m_fit_y_on_next_frame = true; }
 
 private:
     bool m_fit_on_next_frame   = true;
     bool m_fit_x_on_next_frame = false;
+    bool m_fit_y_on_next_frame = false;
 
     /// Cached fingerprint of the signal list: (plot_key, y_axis) for each signal.
     /// When this changes, AxisManager assignments are re-synced.

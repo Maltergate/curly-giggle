@@ -613,6 +613,8 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
         ImGui::SameLine();
         if (ImGui::SmallButton("Fit X"))    engine.fit_x_only();
         ImGui::SameLine();
+        if (ImGui::SmallButton("Fit Y"))    engine.fit_y_only();
+        ImGui::SameLine();
         ImGui::Dummy(ImVec2(0, 0));  // flush sameline
 
         // Plot fills remaining height

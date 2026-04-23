@@ -162,7 +162,7 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
         ImPlotAxisFlags yf = ImPlotAxisFlags_None;
         if (cfg.id != 0)
             yf = ImPlotAxisFlags_AuxDefault;
-        if (m_fit_on_next_frame)
+        if (m_fit_on_next_frame || m_fit_y_on_next_frame)
             yf |= ImPlotAxisFlags_AutoFit;
 
         const char* default_label = (cfg.id == 1) ? "Y2" : (cfg.id == 2) ? "Y3" : "Value";
@@ -176,9 +176,10 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
 
     // Save fitting flag BEFORE clearing — the draw loop needs it to bypass
     // culling so ImPlot's AutoFit can measure the true data bounds.
-    const bool fitting = m_fit_on_next_frame || m_fit_x_on_next_frame;
-    if (m_fit_on_next_frame)  m_fit_on_next_frame  = false;
+    const bool fitting = m_fit_on_next_frame || m_fit_x_on_next_frame || m_fit_y_on_next_frame;
+    if (m_fit_on_next_frame)   m_fit_on_next_frame   = false;
     if (m_fit_x_on_next_frame) m_fit_x_on_next_frame = false;
+    if (m_fit_y_on_next_frame) m_fit_y_on_next_frame = false;
 
     // ── Per-frame view info — used for culling + decimation ───────────────────
     // GetPlotLimits and GetPlotSize are valid after BeginPlot + SetupAxis.

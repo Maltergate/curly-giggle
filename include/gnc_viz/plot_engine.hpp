@@ -30,6 +30,7 @@ public:
     // Convenience — delegated to active type if it's a TimeSeriesPlot
     void fit_to_data();
     void fit_x_only();
+    void fit_y_only();
 
     // Direct access for type-specific UI
     IPlotType*       current_type() noexcept;
