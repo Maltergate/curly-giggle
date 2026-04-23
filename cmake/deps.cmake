@@ -12,7 +12,7 @@ if(NOT glfw3_FOUND)
     FetchContent_Declare(
         glfw
         GIT_REPOSITORY https://github.com/glfw/glfw.git
-        GIT_TAG        3.4
+        GIT_TAG        master   # 3.4 has void* cast errors against macOS SDK 26+
         GIT_SHALLOW    TRUE
     )
     FetchContent_MakeAvailable(glfw)
@@ -88,6 +88,9 @@ FetchContent_Declare(
     GIT_TAG        v1.14.1
     GIT_SHALLOW    TRUE
 )
+# Use std::format (C++20 stdlib) instead of the bundled fmtlib.
+# This avoids the FMT_STRING/consteval incompatibility with Apple Clang 21+.
+set(SPDLOG_USE_STD_FORMAT ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(spdlog)
 
 # ── nlohmann-json ──────────────────────────────────────────────────────────────
