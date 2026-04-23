@@ -16,8 +16,8 @@ USE_MDFILE_AS_MAINPAGE = README.md
 MARKDOWN_SUPPORT       = YES
 AUTOLINK_SUPPORT       = YES
 GENERATE_TREEVIEW      = YES
-FULL_SIDEBAR           = YES
-HTML_COLORSTYLE        = DARK
+FULL_SIDEBAR           = NO
+HTML_COLORSTYLE        = LIGHT
 SORT_MEMBER_DOCS       = NO
 SHOW_USED_FILES        = YES
 SOURCE_BROWSER         = YES
@@ -31,3 +31,4 @@ WARN_NO_PARAMDOC       = YES
 EXTENSION_MAPPING      = mm=C++
 HTML_EXTRA_STYLESHEET  = docs/doxygen-awesome/doxygen-awesome.css \
                          docs/doxygen-awesome/doxygen-awesome-sidebar-only.css
+HTML_EXTRA_FILES       = docs/doxygen-awesome/doxygen-awesome-darkmode-toggle.js
