@@ -40,6 +40,16 @@ struct PlottedSignal {
     /// For vector signals: -1 = plot all components; ≥0 = single component.
     int component_index = -1;
 
+    // ── Per-frame render cache ────────────────────────────────────────────────
+    /// Pre-extracted per-component arrays (row-major → columnar). Populated once
+    /// after buffer loads; avoids per-frame heap allocation in the render loop.
+    /// component_cache[k] = all samples of component k, contiguous.
+    std::vector<std::vector<double>> component_cache;
+
+    /// Points at the buffer that populated component_cache. If buffer changes
+    /// (e.g. time-axis switch) this becomes stale and cache must be rebuilt.
+    std::weak_ptr<SignalBuffer> cache_source;
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /// Unique key for ImPlot series ID and ColorManager: "<sim_id>:<h5_path>".
