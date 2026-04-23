@@ -4,6 +4,8 @@ add_library(gnc_viz_lib STATIC
     log.cpp
     config.cpp
     signal_metadata.cpp
+    signal_buffer.cpp
+    color_manager.cpp
     session.cpp
 )
 

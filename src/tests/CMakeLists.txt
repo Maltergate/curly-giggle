@@ -10,6 +10,8 @@ add_executable(gnc_viz_tests
     test_interfaces.cpp
     test_registry.cpp
     test_signal_metadata.cpp
+    test_signal_buffer.cpp
+    test_color_manager.cpp
 )
 
 target_link_libraries(gnc_viz_tests PRIVATE

@@ -2,6 +2,7 @@ add_executable(gnc_viz
     main.mm
     application.mm
     collapsible_pane.cpp
+    file_open_dialog.mm
 )
 
 target_compile_definitions(gnc_viz PRIVATE
@@ -12,6 +13,7 @@ target_link_libraries(gnc_viz PRIVATE
     gnc_viz_lib
     imgui_lib
     implot_lib
+    "-framework UniformTypeIdentifiers"
 )
 
 gnc_viz_set_compile_options(gnc_viz)
