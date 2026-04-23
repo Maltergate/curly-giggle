@@ -1,0 +1,124 @@
+include(FetchContent)
+set(FETCHCONTENT_QUIET OFF)
+
+# ── GLFW (window + input; no OpenGL context — we use Metal) ────────────────────
+find_package(glfw3 3.3 QUIET)
+if(NOT glfw3_FOUND)
+    message(STATUS "GLFW not found via find_package — fetching from source")
+    set(GLFW_BUILD_DOCS     OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(GLFW_INSTALL        OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        glfw
+        GIT_REPOSITORY https://github.com/glfw/glfw.git
+        GIT_TAG        3.4
+        GIT_SHALLOW    TRUE
+    )
+    FetchContent_MakeAvailable(glfw)
+endif()
+
+# ── Dear ImGui (docking branch — required for multi-viewport / detachable pane) ─
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        docking
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(imgui)
+
+# ImGui static library — GLFW platform backend + Metal renderer backend (macOS)
+# imgui_impl_metal.mm is Objective-C++; CMake handles .mm via OBJCXX language.
+add_library(imgui_lib STATIC
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_metal.mm
+)
+
+target_include_directories(imgui_lib PUBLIC
+    ${imgui_SOURCE_DIR}
+    ${imgui_SOURCE_DIR}/backends
+)
+
+target_compile_definitions(imgui_lib PUBLIC
+    IMGUI_ENABLE_FREETYPE=0
+    # Silence Apple's OpenGL deprecation warnings (we don't use GL but some
+    # system headers may pull it in)
+    GL_SILENCE_DEPRECATION
+)
+
+target_link_libraries(imgui_lib PUBLIC
+    glfw
+    "-framework Metal"
+    "-framework MetalKit"
+    "-framework Foundation"
+    "-framework QuartzCore"
+    "-framework Cocoa"
+    "-framework IOKit"
+    "-framework CoreVideo"
+)
+
+# ── ImPlot ─────────────────────────────────────────────────────────────────────
+FetchContent_Declare(
+    implot
+    GIT_REPOSITORY https://github.com/epezent/implot.git
+    GIT_TAG        master
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(implot)
+
+add_library(implot_lib STATIC
+    ${implot_SOURCE_DIR}/implot.cpp
+    ${implot_SOURCE_DIR}/implot_items.cpp
+)
+
+target_include_directories(implot_lib PUBLIC ${implot_SOURCE_DIR})
+
+# ImPlot must use the same imgui.h as imgui_lib (propagated via PUBLIC link)
+target_link_libraries(implot_lib PUBLIC imgui_lib)
+
+# ── spdlog ─────────────────────────────────────────────────────────────────────
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG        v1.14.1
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(spdlog)
+
+# ── nlohmann-json ──────────────────────────────────────────────────────────────
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+set(JSON_Install    OFF CACHE INTERNAL "")
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.11.3
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
+# ── Catch2 v3 ──────────────────────────────────────────────────────────────────
+FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG        v3.6.0
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(Catch2)
+list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/extras")
+
+# ── HDF5 (required: brew install hdf5) ────────────────────────────────────────
+# Only the C API is used; we wrap it in a C++ class (src/lib/io/hdf5_reader.*).
+find_package(HDF5 COMPONENTS C QUIET)
+if(HDF5_FOUND)
+    message(STATUS "HDF5 found: ${HDF5_VERSION} at ${HDF5_INCLUDE_DIRS}")
+else()
+    message(WARNING
+        "HDF5 not found. HDF5-dependent targets will be disabled.\n"
+        "Install with: brew install hdf5"
+    )
+endif()
