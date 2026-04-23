@@ -49,6 +49,10 @@ public:
     [[nodiscard]] const std::string&           sim_id()   const noexcept { return m_sim_id; }
     [[nodiscard]] const std::filesystem::path& path()     const noexcept { return m_path; }
 
+    /// User-editable display name (defaults to the filename on open).
+    [[nodiscard]] const std::string& display_name() const noexcept { return m_display_name; }
+    void set_display_name(std::string name) { m_display_name = std::move(name); }
+
     /// The user-selected time axis H5 path.
     /// Empty string = synthesise 0-based sample index axis.
     [[nodiscard]] const std::string& time_axis() const noexcept { return m_time_axis; }
@@ -70,6 +74,7 @@ public:
 
 private:
     std::string                                        m_sim_id;
+    std::string                                        m_display_name;
     std::filesystem::path                              m_path;
     HDF5Reader                                         m_reader;
     std::string                                        m_time_axis;

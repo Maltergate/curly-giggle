@@ -65,7 +65,7 @@ void render_signal_tree(AppState& state)
         auto& sim = *sim_ptr;
 
         const bool node_open = ImGui::TreeNodeEx(
-            sim.path().filename().string().c_str(),
+            sim.display_name().c_str(),
             ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth);
 
         if (!node_open) continue;

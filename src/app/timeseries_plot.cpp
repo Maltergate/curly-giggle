@@ -64,6 +64,16 @@ static ImAxis to_imaxis(int y) noexcept
     return ImAxis_Y1;
 }
 
+/// Build the base legend label: "[SimDisplayName] signal_display_name".
+static std::string make_base_label(const AppState& state, const PlottedSignal& ps)
+{
+    for (const auto& sim : state.simulations) {
+        if (sim->sim_id() == ps.sim_id)
+            return "[" + sim->display_name() + "] " + ps.display_name();
+    }
+    return ps.display_name();
+}
+
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 void TimeSeriesPlot::on_activate(AppState& /*state*/)
@@ -171,6 +181,8 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
 
         ImPlot::SetAxes(ImAxis_X1, to_imaxis(ps.y_axis));
 
+        const std::string base = make_base_label(state, ps);
+
         if (ps.component_index >= 0) {
             const std::size_t c = static_cast<std::size_t>(ps.component_index);
             const double* vals = ps.component_cache.size() > c
@@ -178,11 +190,11 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
                                  : buf.values().data();
             char label[512];
             std::snprintf(label, sizeof(label), "%s[%d]",
-                          ps.display_name().c_str(), ps.component_index);
+                          base.c_str(), ps.component_index);
             ImPlot::PlotLine(label, t, vals, static_cast<int>(N), spec);
 
         } else if (buf.n_components() == 1) {
-            ImPlot::PlotLine(ps.display_name().c_str(),
+            ImPlot::PlotLine(base.c_str(),
                              t, buf.values().data(), static_cast<int>(N), spec);
 
         } else {
@@ -190,7 +202,7 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
                 const double* vals = ps.component_cache[comp].data();
                 char label[512];
                 std::snprintf(label, sizeof(label), "%s[%zu]",
-                              ps.display_name().c_str(), comp);
+                              base.c_str(), comp);
                 ImPlot::PlotLine(label, t, vals,
                                  static_cast<int>(N), spec);
             }
@@ -235,22 +247,24 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
                 ImGui::TextColored(ImVec4(col[0], col[1], col[2], col[3]), "●");
                 ImGui::SameLine();
 
+                const std::string base = make_base_label(state, ps);
+
                 if (ps.component_index >= 0) {
                     const std::size_t c = static_cast<std::size_t>(ps.component_index);
                     const double v0 = ps.buffer->at(idx - 1, c);
                     const double v1 = ps.buffer->at(idx,     c);
                     ImGui::Text("%s[%d]: %.6g",
-                                ps.display_name().c_str(),
+                                base.c_str(),
                                 ps.component_index,
                                 v0 * (1.0 - alpha) + v1 * alpha);
                 } else if (ps.buffer->n_components() == 1) {
                     const double v0 = ps.buffer->at(idx - 1);
                     const double v1 = ps.buffer->at(idx);
                     ImGui::Text("%s: %.6g",
-                                ps.display_name().c_str(),
+                                base.c_str(),
                                 v0 * (1.0 - alpha) + v1 * alpha);
                 } else {
-                    ImGui::Text("%s:", ps.display_name().c_str());
+                    ImGui::Text("%s:", base.c_str());
                     for (std::size_t k = 0; k < ps.buffer->n_components(); ++k) {
                         const double v0 = ps.buffer->at(idx - 1, k);
                         const double v1 = ps.buffer->at(idx,     k);

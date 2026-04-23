@@ -51,7 +51,9 @@ bool save_session(const AppState& state, const std::filesystem::path& path)
         // Simulations
         json sims = json::array();
         for (const auto& sim : state.simulations)
-            sims.push_back({{"path", sim->path().string()}, {"sim_id", sim->sim_id()}});
+            sims.push_back({{"path",         sim->path().string()},
+                            {"sim_id",        sim->sim_id()},
+                            {"display_name",  sim->display_name()}});
         j["simulations"] = std::move(sims);
 
         // PlottedSignals (buffer excluded — reloaded on open)
@@ -150,6 +152,8 @@ bool load_session(AppState& state, const std::filesystem::path& path)
 
         auto sim = std::make_unique<SimulationFile>(sim_id);
         if (auto res = sim->open(sim_path); res) {
+            const std::string disp = entry.value("display_name", "");
+            if (!disp.empty()) sim->set_display_name(disp);
             state.simulations.push_back(std::move(sim));
         } else {
             GNC_LOG_WARN("load_session: could not open '{}': {}", sim_path, res.error().message);

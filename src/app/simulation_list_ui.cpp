@@ -17,6 +17,11 @@ namespace gnc_viz {
 // Counter for unique sim_ids — persists across calls (file-scoped).
 static int s_sim_counter = 0;
 
+// Rename editing state
+static std::string s_editing_id;
+static char        s_rename_buf[256] = {};
+static bool        s_focus_rename    = false;
+
 void render_simulation_list(AppState& state)
 {
     // ── Header row: title + [+] open button ───────────────────────────────────
@@ -55,10 +60,38 @@ void render_simulation_list(AppState& state)
 
         ImGui::PushID(sim.sim_id().c_str());
 
-        // ── Filename row ──────────────────────────────────────────────────────
+        // ── Display name (double-click to rename) ─────────────────────────────
         ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.3f, 1.0f), "●");
         ImGui::SameLine();
-        ImGui::TextUnformatted(sim.path().filename().string().c_str());
+
+        if (s_editing_id == sim.sim_id()) {
+            if (s_focus_rename) {
+                ImGui::SetKeyboardFocusHere();
+                s_focus_rename = false;
+            }
+            ImGui::SetNextItemWidth(-1.0f);
+            const bool enter = ImGui::InputText(
+                "##rename", s_rename_buf, sizeof(s_rename_buf),
+                ImGuiInputTextFlags_EnterReturnsTrue |
+                ImGuiInputTextFlags_AutoSelectAll);
+            // Commit on Enter or focus loss
+            if (enter || (!ImGui::IsItemActive() && ImGui::IsItemDeactivated())) {
+                if (s_rename_buf[0] != '\0')
+                    sim.set_display_name(s_rename_buf);
+                s_editing_id.clear();
+            }
+        } else {
+            ImGui::TextUnformatted(sim.display_name().c_str());
+            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+                s_editing_id   = sim.sim_id();
+                s_focus_rename = true;
+                std::strncpy(s_rename_buf, sim.display_name().c_str(),
+                             sizeof(s_rename_buf) - 1);
+                s_rename_buf[sizeof(s_rename_buf) - 1] = '\0';
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Double-click to rename");
+        }
 
         // Sim ID + signal count hint
         ImGui::Indent(12.0f);

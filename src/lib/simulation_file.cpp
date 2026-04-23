@@ -11,6 +11,7 @@ SimulationFile::SimulationFile(std::string sim_id)
 gnc::Result<void> SimulationFile::open(const std::filesystem::path& path)
 {
     m_path = path;
+    m_display_name = path.filename().string();
 
     if (auto r = m_reader.open(path.string()); !r)
         return gnc::make_error<void>(r.error().code, r.error().message);
