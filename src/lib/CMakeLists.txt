@@ -13,6 +13,7 @@ add_library(gnc_viz_lib STATIC
     operation_registry.cpp
     time_aligner.cpp
     axis_manager.cpp
+    derived_signal.cpp
 )
 
 target_include_directories(gnc_viz_lib PUBLIC

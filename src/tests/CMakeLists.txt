@@ -16,6 +16,7 @@ add_executable(gnc_viz_tests
     test_hdf5_reader.cpp
     test_time_aligner.cpp
     test_axis_manager.cpp
+    test_derived_signal.cpp
 )
 
 target_link_libraries(gnc_viz_tests PRIVATE
