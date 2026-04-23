@@ -18,6 +18,8 @@ add_executable(gnc_viz_tests
     test_axis_manager.cpp
     test_derived_signal.cpp
     test_tool_manager.cpp
+    test_session.cpp
+    test_csv_exporter.cpp
     # ToolManager sources (depend on ImGui/ImPlot but no context needed for registry tests)
     ../app/tool_manager.cpp
     ../app/annotation_tool.cpp

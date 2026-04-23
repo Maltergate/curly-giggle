@@ -14,6 +14,8 @@ add_library(gnc_viz_lib STATIC
     time_aligner.cpp
     axis_manager.cpp
     derived_signal.cpp
+    csv_exporter.cpp
+    png_exporter.cpp
 )
 
 target_include_directories(gnc_viz_lib PUBLIC

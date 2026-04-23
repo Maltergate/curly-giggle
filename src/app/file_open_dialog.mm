@@ -47,4 +47,37 @@ OpenDialogResult show_open_dialog(const char*              title,
     return result;
 }
 
+SaveDialogResult show_save_dialog(const std::string& title,
+                                   const std::vector<std::string>& extensions,
+                                   const std::string& default_name)
+{
+    SaveDialogResult result;
+
+    @autoreleasepool {
+        NSSavePanel* panel = [NSSavePanel savePanel];
+        panel.title = [NSString stringWithUTF8String:title.c_str()];
+        panel.nameFieldStringValue =
+            [NSString stringWithUTF8String:default_name.c_str()];
+        panel.canCreateDirectories = YES;
+
+        if (!extensions.empty()) {
+            NSMutableArray<UTType*>* types = [NSMutableArray array];
+            for (const auto& ext : extensions) {
+                UTType* t = [UTType typeWithFilenameExtension:
+                             [NSString stringWithUTF8String:ext.c_str()]];
+                if (t) [types addObject:t];
+            }
+            if (types.count > 0)
+                panel.allowedContentTypes = types;
+        }
+
+        if ([panel runModal] == NSModalResponseOK && panel.URL != nil) {
+            result.confirmed = true;
+            result.path = std::filesystem::path([panel.URL.path UTF8String]);
+        }
+    }
+
+    return result;
+}
+
 } // namespace gnc_viz

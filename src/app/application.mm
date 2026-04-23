@@ -27,10 +27,13 @@
 #include "gnc_viz/simulation_file.hpp"
 #include "gnc_viz/color_manager.hpp"
 #include "gnc_viz/file_open_dialog.hpp"
+#include "gnc_viz/csv_exporter.hpp"
+#include "gnc_viz/png_exporter.hpp"
 #include "gnc_viz/tool_manager.hpp"
 #include "gnc_viz/derived_signal.hpp"
 #include "gnc_viz/operation_registry.hpp"
 #include "gnc_viz/signal_metadata.hpp"
+#include "gnc_viz/session.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -184,6 +187,10 @@ bool Application::init(Config cfg)
 
     m_impl->initialized = true;
     GNC_LOG_INFO("Application initialised");
+
+    // Auto-restore last session (silently fails if no session file exists)
+    load_session(m_impl->state);
+
     return true;
 }
 
@@ -309,6 +316,34 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
                             GNC_LOG_ERROR("Open failed: {}", res.error().message);
                     }
                 }
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Export CSV…", nullptr,
+                                false, !state.plotted_signals.empty())) {
+                auto res = show_save_dialog("Export CSV", {"csv"});
+                if (res.confirmed && !res.path.empty()) {
+                    auto r = export_csv(state, res.path);
+                    if (r)
+                        GNC_LOG_INFO("CSV exported: {} rows to {}", *r, res.path.string());
+                    else
+                        GNC_LOG_WARN("CSV export failed: {}", r.error().message);
+                }
+            }
+            if (ImGui::MenuItem("Export PNG…")) {
+                auto res = show_save_dialog("Export PNG", {"png"});
+                if (res.confirmed && !res.path.empty()) {
+                    auto r = export_png("GNC Viz", res.path);
+                    if (!r)
+                        GNC_LOG_WARN("PNG export failed: {}", r.error().message);
+                }
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Save Session", "Cmd+S"))
+                save_session(state);
+            if (ImGui::MenuItem("Load Session\xe2\x80\xa6")) {
+                auto result = show_open_dialog("Load Session", false, {"json"});
+                if (result.confirmed && !result.paths.empty())
+                    load_session(state, result.paths[0]);
             }
             ImGui::Separator();
             if (ImGui::MenuItem("Quit", "Cmd+Q"))
