@@ -365,7 +365,8 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
 
     // ── Three-pane layout ─────────────────────────────────────────────────────
     const float avail_w = ImGui::GetContentRegionAvail().x;
-    const float avail_h = ImGui::GetContentRegionAvail().y;
+    constexpr float status_bar_h = 22.0f;
+    const float avail_h = ImGui::GetContentRegionAvail().y - status_bar_h;
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
 
@@ -622,6 +623,30 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
     }
 
     ImGui::PopStyleVar();  // ItemSpacing
+
+    // ── Status bar ────────────────────────────────────────────────────────────
+    {
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.13f, 0.13f, 0.16f, 1.0f));
+        ImGui::BeginChild("##StatusBar", ImVec2(-1.0f, status_bar_h), ImGuiChildFlags_None);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 0.0f));
+        ImGui::SetCursorPosY(4.0f);
+        ImGui::SetCursorPosX(8.0f);
+        ImGui::Text("%.0f fps", io.Framerate);
+        ImGui::SameLine(0.0f, 12.0f);
+        ImGui::TextDisabled("|");
+        ImGui::SameLine(0.0f, 12.0f);
+        const std::size_t n_sims = state.simulations.size();
+        ImGui::Text("%zu simulation%s", n_sims, n_sims == 1 ? "" : "s");
+        ImGui::SameLine(0.0f, 12.0f);
+        ImGui::TextDisabled("|");
+        ImGui::SameLine(0.0f, 12.0f);
+        const std::size_t n_sig = state.plotted_signals.size();
+        ImGui::Text("%zu signal%s plotted", n_sig, n_sig == 1 ? "" : "s");
+        ImGui::PopStyleVar();
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
+    }
+
     ImGui::End();
 
     // ── Debug windows ─────────────────────────────────────────────────────────

@@ -97,10 +97,29 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
         }
     }
 
-    // ── Sync AxisManager: clear and re-assign every frame ────────────────────
-    state.axis_manager.clear();
-    for (const auto& ps : state.plotted_signals)
-        state.axis_manager.assign(ps.plot_key(), ps.y_axis);
+    // ── Sync AxisManager: only when signal list / y_axis assignments change ─────
+    {
+        bool changed = (state.plotted_signals.size() != m_prev_axis_fingerprint.size());
+        if (!changed) {
+            for (std::size_t i = 0; i < state.plotted_signals.size(); ++i) {
+                const auto& ps = state.plotted_signals[i];
+                if (m_prev_axis_fingerprint[i].first  != ps.plot_key() ||
+                    m_prev_axis_fingerprint[i].second != ps.y_axis) {
+                    changed = true;
+                    break;
+                }
+            }
+        }
+        if (changed) {
+            state.axis_manager.clear_assignments();
+            m_prev_axis_fingerprint.resize(state.plotted_signals.size());
+            for (std::size_t i = 0; i < state.plotted_signals.size(); ++i) {
+                const auto& ps = state.plotted_signals[i];
+                state.axis_manager.assign(ps.plot_key(), ps.y_axis);
+                m_prev_axis_fingerprint[i] = {ps.plot_key(), ps.y_axis};
+            }
+        }
+    }
 
     // ── Begin plot ────────────────────────────────────────────────────────────
     if (!ImPlot::BeginPlot("##timeseries",
@@ -157,9 +176,10 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
             const double* vals = ps.component_cache.size() > c
                                  ? ps.component_cache[c].data()
                                  : buf.values().data();
-            const std::string label = ps.display_name() + "[" +
-                                      std::to_string(ps.component_index) + "]";
-            ImPlot::PlotLine(label.c_str(), t, vals, static_cast<int>(N), spec);
+            char label[512];
+            std::snprintf(label, sizeof(label), "%s[%d]",
+                          ps.display_name().c_str(), ps.component_index);
+            ImPlot::PlotLine(label, t, vals, static_cast<int>(N), spec);
 
         } else if (buf.n_components() == 1) {
             ImPlot::PlotLine(ps.display_name().c_str(),
@@ -168,9 +188,10 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
         } else {
             for (std::size_t comp = 0; comp < buf.n_components(); ++comp) {
                 const double* vals = ps.component_cache[comp].data();
-                const std::string label = ps.display_name() + "[" +
-                                          std::to_string(comp) + "]";
-                ImPlot::PlotLine(label.c_str(), t, vals,
+                char label[512];
+                std::snprintf(label, sizeof(label), "%s[%zu]",
+                              ps.display_name().c_str(), comp);
+                ImPlot::PlotLine(label, t, vals,
                                  static_cast<int>(N), spec);
             }
         }
@@ -246,12 +267,15 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
     // ── Tool system tick ──────────────────────────────────────────────────────
     state.tool_manager.tick(state);
 
+    static constexpr const char* k_popup_ids[3] = {
+        "##ax_range_0", "##ax_range_1", "##ax_range_2"
+    };
+
     for (int ax_idx = 0; ax_idx < 3; ++ax_idx) {
         if (ax_idx > 0 && !state.axis_manager.has_signals_on(ax_idx)) continue;
         const ImAxis imaxis = to_imaxis(ax_idx);
-        const std::string popup_id = "##ax_range_" + std::to_string(ax_idx);
         if (ImPlot::IsAxisHovered(imaxis) && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
-            ImGui::OpenPopup(popup_id.c_str());
+            ImGui::OpenPopup(k_popup_ids[ax_idx]);
     }
 
     ImPlot::EndPlot();
@@ -259,8 +283,7 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
     // Render axis range popups outside BeginPlot
     for (int ax_idx = 0; ax_idx < 3; ++ax_idx) {
         if (ax_idx > 0 && !state.axis_manager.has_signals_on(ax_idx)) continue;
-        const std::string popup_id = "##ax_range_" + std::to_string(ax_idx);
-        if (ImGui::BeginPopup(popup_id.c_str())) {
+        if (ImGui::BeginPopup(k_popup_ids[ax_idx])) {
             auto& cfg = state.axis_manager.axis_config(ax_idx);
             ImGui::TextDisabled("Y%d range", ax_idx + 1);
             ImGui::Separator();

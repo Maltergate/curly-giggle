@@ -58,6 +58,11 @@ public:
     /// Release all assignments and reset configs (e.g. when all signals removed).
     void clear();
 
+    /// Release only the signal-to-axis assignments without touching AxisConfig
+    /// (labels, ranges, auto_range). Use this instead of clear() when you want
+    /// to re-sync assignments every frame without losing user-configured axis state.
+    void clear_assignments();
+
 private:
     std::unordered_map<std::string, int> m_assignments; // plot_key → axis_id
     std::array<AxisConfig, max_axes>     m_configs;     // indexed by axis_id

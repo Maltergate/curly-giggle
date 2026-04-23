@@ -10,8 +10,17 @@
 //   - Fit All / Fit X buttons trigger ImPlotAxisFlags_AutoFit next frame
 //   - Crosshair: vertical line + interpolated-value tooltip on hover
 //   - Legend positioned NorthEast via SetupLegend
+//
+// Performance notes:
+//   - component_cache: per-signal columnar cache built once on load, not every frame
+//   - axis sync uses a dirty flag: AxisManager is only updated when the signal list
+//     (plot_keys + y_axis assignments) changes, not on every frame
 
 #include "gnc_viz/interfaces.hpp"
+
+#include <string>
+#include <utility>  // std::pair
+#include <vector>
 
 namespace gnc_viz {
 
@@ -35,6 +44,10 @@ public:
 private:
     bool m_fit_on_next_frame   = true;
     bool m_fit_x_on_next_frame = false;
+
+    /// Cached fingerprint of the signal list: (plot_key, y_axis) for each signal.
+    /// When this changes, AxisManager assignments are re-synced.
+    std::vector<std::pair<std::string, int>> m_prev_axis_fingerprint;
 };
 
 } // namespace gnc_viz

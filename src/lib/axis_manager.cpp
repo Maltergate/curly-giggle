@@ -72,4 +72,9 @@ void AxisManager::clear()
     }
 }
 
+void AxisManager::clear_assignments()
+{
+    m_assignments.clear();
+}
+
 } // namespace gnc_viz
