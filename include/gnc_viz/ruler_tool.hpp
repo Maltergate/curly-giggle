@@ -1,8 +1,14 @@
 #pragma once
+/// @file ruler_tool.hpp
+/// @brief IVisualizationTool for two-point distance measurement.
+/// @ingroup tools
 #include "gnc_viz/interfaces.hpp"
 
 namespace gnc_viz {
 
+/// @brief IVisualizationTool for two-point distance measurement.
+/// @details Left-click sets the start point; right-click sets the end point.
+///          Renders a line with delta-time and delta-value annotations.
 class RulerTool : public IVisualizationTool {
 public:
     [[nodiscard]] std::string_view name() const noexcept override { return "Ruler"; }

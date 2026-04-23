@@ -1,12 +1,13 @@
 #pragma once
-
-// ── SimulationListUI — left pane: load and manage simulation files ─────────────
+/// @file simulation_list_ui.hpp
+/// @brief Renders the simulation files list in the left pane.
+/// @ingroup ui_widgets
 
 namespace gnc_viz {
 struct AppState;
 
-/// Render the "Simulations" left pane content.
-/// Must be called inside an ImGui child window / BeginChild block.
+/// @brief Render the "Simulations" left pane content.
+/// @param state Application state (mutable so files can be loaded/unloaded).
 void render_simulation_list(AppState& state);
 
 } // namespace gnc_viz

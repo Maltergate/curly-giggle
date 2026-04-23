@@ -1,20 +1,7 @@
 #pragma once
-
-// ── TimeSeriesPlot — Phase 8/9 IPlotType for time-series line rendering ───────
-//
-// Renders all PlottedSignals from AppState as colored lines on an ImPlot.
-//
-// Features (Phase 8/9):
-//   - Multi-Y-axis rendering via AxisManager (Y1/Y2/Y3 with SetupAxis/SetAxes)
-//   - Axis labels from AxisConfig.label; AuxDefault flags for secondary axes
-//   - Fit All / Fit X buttons trigger ImPlotAxisFlags_AutoFit next frame
-//   - Crosshair: vertical line + interpolated-value tooltip on hover
-//   - Legend positioned NorthEast via SetupLegend
-//
-// Performance notes:
-//   - component_cache: per-signal columnar cache built once on load, not every frame
-//   - axis sync uses a dirty flag: AxisManager is only updated when the signal list
-//     (plot_keys + y_axis assignments) changes, not on every frame
+/// @file timeseries_plot.hpp
+/// @brief IPlotType implementation for multi-Y-axis time-series line plots.
+/// @ingroup plot_system
 
 #include "gnc_viz/interfaces.hpp"
 
@@ -24,6 +11,9 @@
 
 namespace gnc_viz {
 
+/// @brief IPlotType implementation for multi-Y-axis time-series line plots.
+/// @details Renders all PlottedSignals as colored lines using ImPlot.
+///          Supports up to 3 Y-axes via AxisManager and auto-fit controls.
 class TimeSeriesPlot : public IPlotType {
 public:
     [[nodiscard]] std::string_view name() const noexcept override

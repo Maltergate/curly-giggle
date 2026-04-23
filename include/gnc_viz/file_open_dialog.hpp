@@ -1,22 +1,14 @@
 #pragma once
-
-// ── FileOpenDialog — native macOS file picker ─────────────────────────────────
-//
-// Thin pure-C++ wrapper around NSOpenPanel (Obj-C++ impl in file_open_dialog.mm).
-// Presents a modal sheet; returns after the user confirms or cancels.
-//
-// Usage:
-//   auto result = gnc_viz::show_open_dialog();
-//   if (result.confirmed) {
-//       for (const auto& path : result.paths)
-//           load_simulation(path);
-//   }
+/// @file file_open_dialog.hpp
+/// @brief Native macOS file open/save dialog wrappers.
+/// @ingroup utilities
 
 #include <filesystem>
 #include <vector>
 
 namespace gnc_viz {
 
+/// @brief Result of a native open-file dialog.
 struct OpenDialogResult {
     bool confirmed = false;
     std::vector<std::filesystem::path> paths;
@@ -34,6 +26,7 @@ OpenDialogResult show_open_dialog(
 
 // ── Save dialog ────────────────────────────────────────────────────────────────
 
+/// @brief Result of a native save-file dialog.
 struct SaveDialogResult {
     bool                  confirmed = false;
     std::filesystem::path path;

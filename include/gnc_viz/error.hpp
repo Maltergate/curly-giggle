@@ -1,4 +1,7 @@
 #pragma once
+/// @file error.hpp
+/// @brief Error types and Result<T> alias for GNC Viz error handling.
+/// @ingroup core_interfaces
 
 #include <expected>
 #include <string>
@@ -8,35 +11,55 @@
 
 namespace gnc {
 
+/// @brief Error codes for all GNC Viz failure categories.
 // ── Error codes ────────────────────────────────────────────────────────────────
 
 enum class ErrorCode : int {
     // Generic
+    /// @brief Unknown or unclassified error.
     Unknown         = 0,
+    /// @brief Requested item was not found.
     NotFound        = 1,
+    /// @brief A function argument is invalid.
     InvalidArgument = 2,
+    /// @brief Generic I/O error.
     IOError         = 3,
+    /// @brief Operation is invalid in the current state.
     InvalidState    = 4,
     // I/O
+    /// @brief The specified file was not found.
     FileNotFound    = 100,
+    /// @brief The file could not be opened.
     FileOpenFailed  = 101,
+    /// @brief The file could not be read.
     FileReadFailed  = 102,
     // HDF5
+    /// @brief An HDF5 file could not be opened.
     HDF5OpenFailed  = 200,
+    /// @brief An HDF5 dataset could not be read.
     HDF5ReadFailed  = 201,
+    /// @brief HDF5 dataset type does not match expected type.
     HDF5TypeMismatch= 202,
     // Signal processing
+    /// @brief The requested signal was not found.
     SignalNotFound  = 300,
+    /// @brief Signal types are incompatible.
     SignalTypeMismatch = 301,
+    /// @brief Array dimensions are incompatible.
     DimensionMismatch  = 302,
     // Rendering / UI
+    /// @brief A rendering operation failed.
     RenderFailed    = 400,
 };
 
+/// @brief Returns a human-readable name for the given ErrorCode.
+/// @param code The error code to name.
+/// @return A string_view of the error code name.
 std::string_view error_code_name(ErrorCode code) noexcept;
 
 // ── Error struct ───────────────────────────────────────────────────────────────
 
+/// @brief Carries a structured error with code, message, and optional context.
 struct Error {
     ErrorCode   code    = ErrorCode::Unknown;
     std::string message;
@@ -71,16 +94,9 @@ using Result = std::expected<T, Error>;
 // Convenience alias for operations with no return value.
 using VoidResult = Result<void>;
 
-// ── GNC_TRY macro ──────────────────────────────────────────────────────────────
-//
-// Early-return on error inside a function returning gnc::Result<U>.
-//
-//   gnc::Result<Foo> my_func() {
-//       auto x = GNC_TRY(step_one());          // x is the unwrapped value
-//       auto y = GNC_TRY(step_two(x));         // y is the unwrapped value
-//       return Foo{x, y};
-//   }
-//
+/// @brief Early-return propagation macro for gnc::Result<T>.
+/// @details Evaluates expr; if it holds an error, returns it immediately.
+///          Otherwise, unwraps and yields the contained value.
 #define GNC_TRY(expr)                                        \
     ({                                                       \
         auto _gnc_res = (expr);                              \
@@ -90,6 +106,12 @@ using VoidResult = Result<void>;
 
 // ── Helper factories ───────────────────────────────────────────────────────────
 
+/// @brief Create a Result<T> holding an error.
+/// @tparam T The success value type.
+/// @param code    Error code.
+/// @param message Human-readable message.
+/// @param context Optional calling-site context string.
+/// @return An unexpected Result carrying the constructed Error.
 template<typename T>
 [[nodiscard]] inline Result<T> make_error(ErrorCode code,
                                           std::string message,
@@ -98,6 +120,11 @@ template<typename T>
     return std::unexpected(Error::make(code, std::move(message), std::move(context)));
 }
 
+/// @brief Create a VoidResult holding an error.
+/// @param code    Error code.
+/// @param message Human-readable message.
+/// @param context Optional calling-site context string.
+/// @return An unexpected VoidResult carrying the constructed Error.
 [[nodiscard]] inline VoidResult make_void_error(ErrorCode code,
                                                 std::string message,
                                                 std::string context = {})

@@ -1,18 +1,7 @@
 #pragma once
-
-// ── SignalMetadata — lightweight signal descriptor ─────────────────────────────
-//
-// Describes a signal (dataset) inside an HDF5 file.
-// Cheap to copy; zero data bytes loaded.
-// Populated by HDF5Reader::enumerate_signals() in Phase 2.
-//
-// The `shape` field describes the raw dataset shape:
-//   - Time-series scalar:  {N}         → N samples, 1 value each
-//   - Time-series vector:  {N, 3}      → N samples, 3 components (e.g. position)
-//   - Time-series matrix:  {N, 3, 3}   → N samples, 3×3 matrices
-//
-// The `time_path` field is the H5 dataset path for the time axis.
-// If empty, the global time axis is used (conventional: "/time").
+/// @file signal_metadata.hpp
+/// @brief Lightweight descriptor for an HDF5 signal dataset.
+/// @ingroup data_layer
 
 #include <cstddef>
 #include <cstdint>
@@ -21,6 +10,7 @@
 
 namespace gnc_viz {
 
+/// @brief Numeric element type of an HDF5 dataset.
 // ── DataType enumeration ───────────────────────────────────────────────────────
 
 enum class DataType : uint8_t {
@@ -38,6 +28,9 @@ enum class DataType : uint8_t {
 
 // ── SignalMetadata ─────────────────────────────────────────────────────────────
 
+/// @brief Lightweight descriptor for one HDF5 signal dataset.
+/// @details Cheap to copy; carries no sample data.
+///          Populated by HDF5Reader::enumerate_signals(). shape[0] is the sample count.
 struct SignalMetadata {
     /// Basename of the signal (last path component), e.g. "quaternion_body".
     std::string name;

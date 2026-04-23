@@ -1,4 +1,7 @@
 #pragma once
+/// @file csv_exporter.hpp
+/// @brief Exports visible plotted signals to a CSV file.
+/// @ingroup utilities
 #include "gnc_viz/app_state.hpp"
 #include "gnc_viz/error.hpp"
 #include <filesystem>

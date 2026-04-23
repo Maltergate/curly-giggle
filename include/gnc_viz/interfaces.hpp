@@ -1,15 +1,8 @@
 #pragma once
-
-// ── Core pluggable interfaces ──────────────────────────────────────────────────
-//
-// These three pure-abstract classes are the extension points of GNC Viz.
-// Adding a new plot type / signal operation / tool = implement one of these
-// interfaces and register it with the corresponding Registry<T>.
-//
-// Rules:
-//  1. All methods use smart pointers or references — no raw owning pointers.
-//  2. Implementations must be default-constructible (required by Registry<T>).
-//  3. No ImGui headers here — interfaces are pure C++.
+/// @file interfaces.hpp
+/// @brief Core pluggable interfaces: IPlotType, ISignalOperation, IVisualizationTool.
+/// @defgroup core_interfaces Core Interfaces
+/// @brief Extension points for plot types, signal operations, and visualization tools.
 
 #include "gnc_viz/error.hpp"
 #include <memory>
@@ -29,14 +22,9 @@ struct AppState;
 // Real definition lives in signal_buffer.hpp once Phase 2 is implemented.
 // Interfaces need only the type name; callers use shared_ptr<SignalBuffer>.
 
-// ── IPlotType ─────────────────────────────────────────────────────────────────
-//
-// A plot type knows how to render one or more signals in ImPlot.
-// Implementations: TimeSeriesPlot, Trajectory2DPlot, GroundTrackPlot, ...
-//
-// Render() is called every frame.  The implementation calls ImPlot::BeginPlot()
-// inside the already-open ImGui child window provided by PlotEngine.
-
+/// @brief Abstract interface for a plot type (Time Series, Trajectory 2D, Ground Track, …).
+/// @details Implementations are registered with PlotRegistry and activated via PlotEngine.
+///          The render() method is called every frame inside the active ImGui child window.
 class IPlotType {
 public:
     virtual ~IPlotType() = default;
@@ -60,11 +48,9 @@ public:
     virtual void on_deactivate() {}
 };
 
-// ── ISignalOperation ──────────────────────────────────────────────────────────
-//
-// Transforms N input signal buffers into one output buffer.
-// Implementations: AddOp, SubtractOp, MultiplyOp, ScaleOp, MagnitudeOp, ...
-
+/// @brief Abstract interface for a signal transformation operation.
+/// @details Transforms N input SignalBuffers into one output SignalBuffer.
+///          Implementations: AddOp, SubtractOp, MultiplyOp, ScaleOp, MagnitudeOp.
 class ISignalOperation {
 public:
     virtual ~ISignalOperation() = default;
@@ -85,15 +71,9 @@ public:
     execute(std::span<const std::shared_ptr<SignalBuffer>> inputs) = 0;
 };
 
-// ── IVisualizationTool ────────────────────────────────────────────────────────
-//
-// An interactive overlay tool rendered on top of the active plot.
-// Implementations: AnnotationTool, RulerTool, ...
-//
-// The tool system calls these methods in order each frame:
-//   1. handle_input()  — process mouse / keyboard while the plot is hovered
-//   2. render_overlay() — draw ImDrawList annotations on top of the plot
-
+/// @brief Abstract interface for an interactive overlay tool rendered on the plot.
+/// @details Implementations: AnnotationTool, RulerTool.
+///          handle_input() is called when the plot is hovered; render_overlay() every frame.
 class IVisualizationTool {
 public:
     virtual ~IVisualizationTool() = default;
@@ -121,22 +101,19 @@ public:
     virtual void on_deactivate() {}
 };
 
-// ── C++20 concept constraints used by Registry<T> ────────────────────────────
-//
-// Each registry constraint ensures:
-//  1. The type derives from the expected interface.
-//  2. The type is default-constructible (registry creates instances via T()).
-
+/// @brief Concept: T must derive from IPlotType and be default-constructible.
 template<typename T>
 concept PlotTypeConcept =
     std::derived_from<T, IPlotType> &&
     std::default_initializable<T>;
 
+/// @brief Concept: T must derive from ISignalOperation and be default-constructible.
 template<typename T>
 concept SignalOperationConcept =
     std::derived_from<T, ISignalOperation> &&
     std::default_initializable<T>;
 
+/// @brief Concept: T must derive from IVisualizationTool and be default-constructible.
 template<typename T>
 concept VisualizationToolConcept =
     std::derived_from<T, IVisualizationTool> &&

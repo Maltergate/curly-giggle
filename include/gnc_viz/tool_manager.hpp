@@ -1,4 +1,8 @@
 #pragma once
+/// @file tool_manager.hpp
+/// @brief Owns the ToolRegistry and the currently active IVisualizationTool.
+/// @defgroup tools Visualization Tools
+/// @brief Interactive overlay tools: Annotation and Ruler.
 
 #include "gnc_viz/registry.hpp"
 #include "gnc_viz/interfaces.hpp"
@@ -10,10 +14,12 @@ namespace gnc_viz {
 
 struct AppState;
 
-/// ToolManager: owns the ToolRegistry and the currently active tool.
-/// One tool active at a time (or none = nullptr).
+/// @brief Owns the ToolRegistry and the currently active IVisualizationTool.
+/// @details One tool active at a time (or none = nullptr). Handles activate/deactivate
+///          toggling and dispatches per-frame input and overlay calls.
 class ToolManager {
 public:
+    /// @brief Construct and register all built-in tools (AnnotationTool, RulerTool).
     ToolManager();   // registers AnnotationTool, RulerTool
 
     /// Activate tool by id. If already active, deactivates it (toggle).

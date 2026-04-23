@@ -1,4 +1,7 @@
 #pragma once
+/// @file ground_track_plot.hpp
+/// @brief IPlotType implementation for satellite ground track plots.
+/// @ingroup plot_system
 #include "gnc_viz/interfaces.hpp"
 #include <memory>
 #include <string>
@@ -9,6 +12,9 @@ namespace gnc_viz {
 
 class SignalBuffer;
 
+/// @brief IPlotType implementation for satellite ground track plots.
+/// @details Converts ECEF/ECI position signals to latitude/longitude and
+///          renders them as a scatter plot on a cylindrical map.
 class GroundTrackPlot : public IPlotType {
 public:
     [[nodiscard]] std::string_view name() const noexcept override { return "Ground Track"; }
@@ -18,7 +24,7 @@ public:
     void on_deactivate() override {}
 
 private:
-    // Pre-computed lat/lon per signal (plot_key → cache). Valid while buffer ptr unchanged.
+    /// @brief Cached pre-computed lat/lon arrays for one signal (keyed by plot_key).
     struct GroundTrackCache {
         std::vector<float>           lats;
         std::vector<float>           lons;

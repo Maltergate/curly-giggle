@@ -1,11 +1,17 @@
 #pragma once
+/// @file trajectory_2d_plot.hpp
+/// @brief IPlotType implementation for 2D trajectory scatter plots.
+/// @ingroup plot_system
 #include "gnc_viz/interfaces.hpp"
 #include <string>
 
 namespace gnc_viz {
 
+/// @brief Axis pair selection for the 2D trajectory plot.
 enum class Trajectory2DAxes { XY = 0, YZ = 1, XZ = 2 };
 
+/// @brief IPlotType implementation for 2D trajectory scatter plots.
+/// @details Plots component pairs (XY, YZ, or XZ) from multi-component signals.
 class Trajectory2DPlot : public IPlotType {
 public:
     [[nodiscard]] std::string_view name() const noexcept override { return "2D Trajectory"; }

@@ -1,17 +1,7 @@
 #pragma once
-
-// ── PlottedSignal — one signal shown on the active plot ───────────────────────
-//
-// Each PlottedSignal represents a user decision to show a specific dataset
-// from a specific SimulationFile on the current plot.
-//
-// Lifecycle:
-//   1. User clicks [+] next to a signal in the signal tree.
-//   2. AppState::plotted_signals gains a PlottedSignal with buffer = nullptr.
-//   3. TimeSeriesPlot::render() calls SimulationFile::load_signal() on demand
-//      and stores the result in buffer.
-//   4. When the user removes the signal, the PlottedSignal is erased.
-//      If no other PlottedSignal shares the buffer, it is freed automatically.
+/// @file plotted_signal.hpp
+/// @brief Represents one signal the user has added to the active plot.
+/// @ingroup app_layer
 
 #include "gnc_viz/signal_buffer.hpp"
 #include "gnc_viz/signal_metadata.hpp"
@@ -22,6 +12,10 @@
 
 namespace gnc_viz {
 
+/// @brief Represents one signal the user has added to the active plot.
+/// @details Carries identity (sim_id + metadata), a lazy-loaded buffer,
+///          display properties (color, alias, visibility, y_axis), and
+///          pre-extracted float caches for zero-allocation ImPlot rendering.
 struct PlottedSignal {
     // ── Identity ──────────────────────────────────────────────────────────────
     std::string    sim_id;  ///< Which SimulationFile this signal comes from.

@@ -1,9 +1,7 @@
 #pragma once
-
-// ── TimeAligner — aligns N SignalBuffers onto a common time grid ──────────────
-//
-// Uses linear interpolation to resample all inputs onto a uniform grid defined
-// by their time overlap and the highest-frequency input.
+/// @file time_aligner.hpp
+/// @brief Aligns multiple SignalBuffers onto a common uniform time grid.
+/// @ingroup data_layer
 
 #include "gnc_viz/error.hpp"
 #include "gnc_viz/signal_buffer.hpp"
@@ -14,6 +12,9 @@
 
 namespace gnc_viz {
 
+/// @brief Aligns multiple SignalBuffers onto a common uniform time grid.
+/// @details Uses linear interpolation to resample all inputs onto a uniform grid
+///          defined by their time overlap and the highest-frequency input.
 class TimeAligner {
 public:
     /// Align N signal buffers onto a common time grid using linear interpolation.
