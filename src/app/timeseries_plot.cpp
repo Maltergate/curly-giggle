@@ -32,27 +32,37 @@ static ImVec4 unpack_rgba(uint32_t rgba) noexcept
     };
 }
 
-/// Populate (or refresh) the component_cache for a vector signal.
-/// For scalars (n_components == 1), the cache is left empty — the render loop
-/// reads buf.values().data() directly without any copy.
+/// Build (or rebuild) the float caches for a signal.
+/// Converts double→float exactly once at load time; ImPlot renders with float*.
+/// Scalars are stored in component_cache[0] so the render loop is uniform.
 static void build_component_cache(PlottedSignal& ps)
 {
     const auto& buf = *ps.buffer;
     const std::size_t K = buf.n_components();
     const std::size_t N = buf.sample_count();
 
-    if (K <= 1) {
-        ps.component_cache.clear();
-    } else {
-        ps.component_cache.resize(K);
-        const double* v = buf.values().data();
-        for (std::size_t k = 0; k < K; ++k) {
-            ps.component_cache[k].resize(N);
-            double* dst = ps.component_cache[k].data();
+    // ── Time → float ────────────────────────────────────────────────────────
+    ps.time_cache_f.resize(N);
+    const double* t_src = buf.time().data();
+    for (std::size_t i = 0; i < N; ++i)
+        ps.time_cache_f[i] = static_cast<float>(t_src[i]);
+
+    // ── Values → float (all K components, including scalar K=1) ─────────────
+    const std::size_t cols = (K == 0) ? 1 : K;
+    ps.component_cache.resize(cols);
+    const double* v = buf.values().data();
+    for (std::size_t k = 0; k < cols; ++k) {
+        ps.component_cache[k].resize(N);
+        float* dst = ps.component_cache[k].data();
+        if (K <= 1) {
             for (std::size_t i = 0; i < N; ++i)
-                dst[i] = v[i * K + k];
+                dst[i] = static_cast<float>(v[i]);
+        } else {
+            for (std::size_t i = 0; i < N; ++i)
+                dst[i] = static_cast<float>(v[i * K + k]);
         }
     }
+
     ps.cache_source = ps.buffer;
 }
 
@@ -170,14 +180,14 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
     // ── Draw signals ──────────────────────────────────────────────────────────
     for (const auto& ps : state.plotted_signals) {
         if (!ps.visible || !ps.buffer || !ps.buffer->is_loaded()) continue;
+        if (ps.time_cache_f.empty() || ps.component_cache.empty()) continue;
 
-        const auto& buf = *ps.buffer;
-        const std::size_t N = buf.sample_count();
-        if (N == 0) continue;
-
-        const double* t = buf.time().data();
         ImPlotSpec spec;
         spec.LineColor = unpack_rgba(ps.color_rgba);
+
+        // ── All data comes from pre-built float caches (zero per-frame alloc) ──
+        const float* t   = ps.time_cache_f.data();
+        const int    N_f = static_cast<int>(ps.time_cache_f.size());
 
         ImPlot::SetAxes(ImAxis_X1, to_imaxis(ps.y_axis));
 
@@ -185,26 +195,20 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
 
         if (ps.component_index >= 0) {
             const std::size_t c = static_cast<std::size_t>(ps.component_index);
-            const double* vals = ps.component_cache.size() > c
-                                 ? ps.component_cache[c].data()
-                                 : buf.values().data();
+            if (c >= ps.component_cache.size()) continue;
             char label[512];
             std::snprintf(label, sizeof(label), "%s[%d]",
                           base.c_str(), ps.component_index);
-            ImPlot::PlotLine(label, t, vals, static_cast<int>(N), spec);
-
-        } else if (buf.n_components() == 1) {
-            ImPlot::PlotLine(base.c_str(),
-                             t, buf.values().data(), static_cast<int>(N), spec);
+            ImPlot::PlotLine(label, t, ps.component_cache[c].data(), N_f, spec);
 
         } else {
-            for (std::size_t comp = 0; comp < buf.n_components(); ++comp) {
-                const double* vals = ps.component_cache[comp].data();
+            for (std::size_t comp = 0; comp < ps.component_cache.size(); ++comp) {
                 char label[512];
-                std::snprintf(label, sizeof(label), "%s[%zu]",
-                              base.c_str(), comp);
-                ImPlot::PlotLine(label, t, vals,
-                                 static_cast<int>(N), spec);
+                if (ps.component_cache.size() == 1)
+                    std::snprintf(label, sizeof(label), "%s", base.c_str());
+                else
+                    std::snprintf(label, sizeof(label), "%s[%zu]", base.c_str(), comp);
+                ImPlot::PlotLine(label, t, ps.component_cache[comp].data(), N_f, spec);
             }
         }
     }

@@ -43,10 +43,16 @@ struct PlottedSignal {
     // ── Per-frame render cache ────────────────────────────────────────────────
     /// Pre-extracted per-component arrays (row-major → columnar). Populated once
     /// after buffer loads; avoids per-frame heap allocation in the render loop.
-    /// component_cache[k] = all samples of component k, contiguous.
-    std::vector<std::vector<double>> component_cache;
+    /// time_cache_f[i] = time of sample i, converted to float once at load time.
+    /// Passed directly to ImPlot (which renders in float internally).
+    std::vector<float> time_cache_f;
 
-    /// Points at the buffer that populated component_cache. If buffer changes
+    /// component_cache[k][i] = sample i of component k, converted to float once
+    /// at load time. Scalars use component_cache[0]. Sized K×N after build.
+    std::vector<std::vector<float>> component_cache;
+
+    /// Points at the buffer that populated the float caches. If buffer changes
+    /// (different ptr) the caches are stale and must be rebuilt.
     /// (e.g. time-axis switch) this becomes stale and cache must be rebuilt.
     std::weak_ptr<SignalBuffer> cache_source;
 

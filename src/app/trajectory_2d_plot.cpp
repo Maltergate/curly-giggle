@@ -32,9 +32,9 @@ static void ensure_component_cache(PlottedSignal& ps)
         const double* v = buf.values().data();
         for (std::size_t k = 0; k < K; ++k) {
             ps.component_cache[k].resize(N);
-            double* dst = ps.component_cache[k].data();
+            float* dst = ps.component_cache[k].data();
             for (std::size_t i = 0; i < N; ++i)
-                dst[i] = v[i * K + k];
+                dst[i] = static_cast<float>(v[i * K + k]);
         }
     }
     ps.cache_source = ps.buffer;
@@ -96,8 +96,8 @@ void Trajectory2DPlot::render(AppState& state, float width, float height)
         ImPlotSpec spec;
         spec.LineColor = unpack_rgba_traj(ps.color_rgba);
 
-        const double* xs = ps.component_cache[static_cast<std::size_t>(c_x)].data();
-        const double* ys = ps.component_cache[static_cast<std::size_t>(c_y)].data();
+        const float* xs = ps.component_cache[static_cast<std::size_t>(c_x)].data();
+        const float* ys = ps.component_cache[static_cast<std::size_t>(c_y)].data();
         ImPlot::PlotLine(ps.display_name().c_str(), xs, ys,
                          static_cast<int>(N), spec);
     }

@@ -41,8 +41,8 @@ void GroundTrackPlot::build_ground_track(GroundTrackCache& cache,
         const double r  = std::sqrt(rx*rx + ry*ry + rz*rz);
         if (r < 1e-9) { cache.lats[i] = 0.0; cache.lons[i] = 0.0; continue; }
         // Geocentric latitude; inertial longitude (no Earth-rotation / sidereal correction)
-        cache.lats[i] = std::asin(std::clamp(rz / r, -1.0, 1.0)) * RAD_TO_DEG;
-        cache.lons[i] = std::atan2(ry, rx) * RAD_TO_DEG;
+        cache.lats[i] = static_cast<float>(std::asin(std::clamp(rz / r, -1.0, 1.0)) * RAD_TO_DEG);
+        cache.lons[i] = static_cast<float>(std::atan2(ry, rx) * RAD_TO_DEG);
     }
 }
 

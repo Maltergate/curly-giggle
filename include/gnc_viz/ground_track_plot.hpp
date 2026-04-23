@@ -20,8 +20,8 @@ public:
 private:
     // Pre-computed lat/lon per signal (plot_key → cache). Valid while buffer ptr unchanged.
     struct GroundTrackCache {
-        std::vector<double>          lats;
-        std::vector<double>          lons;
+        std::vector<float>           lats;
+        std::vector<float>           lons;
         std::weak_ptr<SignalBuffer>  source;
     };
     std::unordered_map<std::string, GroundTrackCache> m_cache;
