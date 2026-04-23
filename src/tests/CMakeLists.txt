@@ -3,6 +3,7 @@ include(Catch)
 
 add_executable(gnc_viz_tests
     test_infra.cpp
+    test_error.cpp
 )
 
 target_link_libraries(gnc_viz_tests PRIVATE

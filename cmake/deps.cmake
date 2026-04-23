@@ -45,7 +45,6 @@ target_include_directories(imgui_lib PUBLIC
 )
 
 target_compile_definitions(imgui_lib PUBLIC
-    IMGUI_ENABLE_FREETYPE=0
     # Silence Apple's OpenGL deprecation warnings (we don't use GL but some
     # system headers may pull it in)
     GL_SILENCE_DEPRECATION
@@ -74,6 +73,7 @@ FetchContent_MakeAvailable(implot)
 add_library(implot_lib STATIC
     ${implot_SOURCE_DIR}/implot.cpp
     ${implot_SOURCE_DIR}/implot_items.cpp
+    ${implot_SOURCE_DIR}/implot_demo.cpp
 )
 
 target_include_directories(implot_lib PUBLIC ${implot_SOURCE_DIR})
