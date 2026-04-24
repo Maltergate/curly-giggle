@@ -1,0 +1,76 @@
+name: Bug Report
+description: Report a defect or unexpected behaviour in FastScope
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report.
+        Please provide as much detail as possible so the issue can be reproduced.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: What happened? What did you expect to happen?
+      placeholder: |
+        When I load file X and plot signal Y, the application crashes / shows incorrect values / drops to 20 fps.
+        I expected the plot to display correctly at 60 fps.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact sequence of actions to trigger the bug.
+      placeholder: |
+        1. Launch FastScope
+        2. Load file `example.h5` via File > Open
+        3. Expand the signal tree and click [+] on signal `sensors/accelerometer/x`
+        4. Observe: plot is empty / application crashes
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: macOS version, hardware, build type.
+      placeholder: |
+        - macOS: 14.5 (Sonoma)
+        - Hardware: Apple M2 Pro
+        - Build type: Debug / Release
+        - FastScope version / git SHA: abc1234
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: |
+        Paste relevant lines from `~/.fastscope/fastscope.log`.
+        You can run `tail -100 ~/.fastscope/fastscope.log` to get the last 100 lines.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: hdf5_structure
+    attributes:
+      label: HDF5 file structure (if relevant)
+      description: |
+        If the bug is specific to a file structure, paste the output of:
+        `h5ls -r your_file.h5 | head -40`
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Screenshots, stack traces, or any other relevant information.
+    validations:
+      required: false
