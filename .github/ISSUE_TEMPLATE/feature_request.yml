@@ -1,0 +1,71 @@
+name: Feature Request
+description: Propose a new feature or enhancement for FastScope
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        FastScope is a modular HDF5 data visualizer. Feature requests are welcome!
+        The most useful requests include a concrete use-case and an idea of where the
+        feature fits in the existing architecture.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What task is currently impossible or difficult?
+      placeholder: |
+        When comparing two datasets recorded at different sample rates, there is no way to
+        overlay them on the same time axis because the time vectors are different lengths.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the feature as concretely as possible.
+      placeholder: |
+        Add a "Time Align" toggle in the plot options that resamples all signals to a common
+        time vector using linear interpolation before plotting.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature category
+      options:
+        - New plot type (IPlotType)
+        - New signal operation (ISignalOperation)
+        - New visualization tool (IVisualizationTool)
+        - UI / UX improvement
+        - Performance
+        - Export / Import
+        - Session persistence
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: architecture
+    attributes:
+      label: Architecture notes (optional)
+      description: |
+        If you know where this fits in the codebase, describe it here.
+        E.g.: "This would extend ISignalOperation", "This is a new panel in the right pane", etc.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this to your workflow?
+      options:
+        - Nice to have
+        - Would significantly improve my workflow
+        - Blocking — I cannot use FastScope without this
+    validations:
+      required: true
