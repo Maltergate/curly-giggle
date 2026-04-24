@@ -682,55 +682,50 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
         ImGui::EndChild();
     }
 
-    // ItemSpacing is still 0 here — do NOT pop until after the status bar so
-    // no gap is inserted between the panes and the bar.
+    ImGui::PopStyleVar();  // ItemSpacing
 
-    // ── Status bar ────────────────────────────────────────────────────────────
+    // ── Status bar ─────────────────────────────────────────────────────────────
+    // Anchor to the bottom of the content area via explicit SetCursorPos so
+    // the bar is always visible regardless of layout drift.
     {
         const SystemStats sys    = query_system_stats();
         const float       fps    = io.Framerate;
         const std::size_t n_sims = state.simulations.size();
         const std::size_t n_sig  = state.plotted_signals.size();
 
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.10f, 0.10f, 0.13f, 1.0f));
-        ImGui::BeginChild("##StatusBar", ImVec2(-1.0f, status_bar_h), ImGuiChildFlags_None);
+        // Position cursor at the exact bottom of the host window content area.
+        const float content_max_y = ImGui::GetContentRegionMax().y;
+        ImGui::SetCursorPos(ImVec2(0.0f, content_max_y - status_bar_h));
 
-        ImGui::PopStyleVar();  // ItemSpacing (restore here, inside the child)
+        // Draw coloured background + separator line directly via DrawList.
+        const ImVec2 p0  = ImGui::GetCursorScreenPos();
+        const float  bar_w = ImGui::GetContentRegionMax().x;
+        const ImVec2 p1(p0.x + bar_w, p0.y + status_bar_h);
+        ImDrawList*  dl  = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(p0, p1, IM_COL32(20, 20, 28, 255));
+        dl->AddLine(p0, ImVec2(p1.x, p0.y), IM_COL32(70, 70, 100, 200), 1.0f);
+
+        // Position text items vertically centred inside the bar.
+        const float item_y = p0.y + (status_bar_h - ImGui::GetTextLineHeight()) * 0.5f;
+        ImGui::SetCursorScreenPos(ImVec2(p0.x + 8.0f, item_y));
 
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 0.0f));
-        ImGui::SetCursorPosY(4.0f);
-        ImGui::SetCursorPosX(8.0f);
 
-        // FPS
         ImGui::TextDisabled("%.1f fps", fps);
-        ImGui::SameLine(0.0f, 12.0f);
-        ImGui::TextDisabled("|");
-        ImGui::SameLine(0.0f, 12.0f);
+        ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
 
-        // Simulations loaded
         ImGui::Text("%zu file%s", n_sims, n_sims == 1 ? "" : "s");
-        ImGui::SameLine(0.0f, 12.0f);
-        ImGui::TextDisabled("|");
-        ImGui::SameLine(0.0f, 12.0f);
+        ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
 
-        // Signals plotted
         ImGui::Text("%zu signal%s plotted", n_sig, n_sig == 1 ? "" : "s");
-        ImGui::SameLine(0.0f, 12.0f);
-        ImGui::TextDisabled("|");
-        ImGui::SameLine(0.0f, 12.0f);
+        ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
 
-        // CPU %
         ImGui::TextDisabled("CPU %.1f%%", sys.cpu_pct);
-        ImGui::SameLine(0.0f, 12.0f);
-        ImGui::TextDisabled("|");
-        ImGui::SameLine(0.0f, 12.0f);
+        ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
 
-        // Memory RSS
         ImGui::TextDisabled("Mem %.0f MB", sys.rss_mb);
 
         ImGui::PopStyleVar();
-        ImGui::EndChild();
-        ImGui::PopStyleColor();
     }
 
     ImGui::End();
