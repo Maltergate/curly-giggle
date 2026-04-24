@@ -51,14 +51,21 @@ namespace fastscope {
 
 // ── System stats (macOS) ───────────────────────────────────────────────────────
 struct SystemStats {
-    float cpu_pct = 0.0f;   ///< App CPU usage in percent.
-    float rss_mb  = 0.0f;   ///< Resident set size in megabytes.
+    float cpu_pct    = 0.0f;   ///< App CPU usage in percent.
+    float rss_mb     = 0.0f;   ///< Resident set size in megabytes.
+    float delta_mb   = 0.0f;   ///< RSS change from post-warmup baseline (MB).
+    float growth_mbs = 0.0f;   ///< Rolling 5-second growth rate (MB/s). Positive = growing.
 };
 
-/// Returns lightweight per-frame system metrics.
-/// CPU% is computed from rusage delta so it reflects actual usage since last call.
+/// Returns lightweight per-frame system metrics including memory growth diagnostics.
+/// Memory growth distinguishes Metal driver warmup (stabilises after ~30 s) from a
+/// real leak (grows indefinitely).  A baseline is sampled after WARMUP_SECS seconds;
+/// delta_mb and growth_mbs are relative to that baseline.
 static SystemStats query_system_stats() noexcept
 {
+    static constexpr double WARMUP_SECS     = 10.0;  // seconds before baseline is locked
+    static constexpr double RATE_WINDOW     =  5.0;  // rolling window for growth rate
+
     SystemStats s;
 
     // ── Memory: task resident set size ──────────────────────────────────────────
@@ -68,6 +75,50 @@ static SystemStats query_system_stats() noexcept
         if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO,
                       reinterpret_cast<task_info_t>(&info), &count) == KERN_SUCCESS)
             s.rss_mb = static_cast<float>(info.resident_size) / (1024.0f * 1024.0f);
+    }
+
+    // ── Memory delta: post-warmup baseline + rolling growth rate ─────────────
+    {
+        static double s_start_time       = -1.0;
+        static float  s_baseline_mb      =  0.0f;
+        static bool   s_baseline_set     = false;
+        static double s_rate_ref_time    = -1.0;
+        static float  s_rate_ref_mb      =  0.0f;
+
+        struct timeval now_tv{};
+        gettimeofday(&now_tv, nullptr);
+        const double now = static_cast<double>(now_tv.tv_sec)
+                         + static_cast<double>(now_tv.tv_usec) * 1e-6;
+
+        // Record app-start time on first call.
+        if (s_start_time < 0.0) {
+            s_start_time    = now;
+            s_rate_ref_time = now;
+            s_rate_ref_mb   = s.rss_mb;
+        }
+
+        // Lock in baseline once warmup period has elapsed.
+        if (!s_baseline_set && (now - s_start_time) >= WARMUP_SECS) {
+            s_baseline_mb  = s.rss_mb;
+            s_baseline_set = true;
+            s_rate_ref_time = now;
+            s_rate_ref_mb   = s.rss_mb;
+        }
+
+        if (s_baseline_set) {
+            s.delta_mb = s.rss_mb - s_baseline_mb;
+
+            // Refresh rate reference every RATE_WINDOW seconds.
+            const double elapsed = now - s_rate_ref_time;
+            if (elapsed >= RATE_WINDOW) {
+                s.growth_mbs    = static_cast<float>((s.rss_mb - s_rate_ref_mb) / elapsed);
+                s_rate_ref_time = now;
+                s_rate_ref_mb   = s.rss_mb;
+            } else if (elapsed > 0.1) {
+                // Provide a live estimate within the current window.
+                s.growth_mbs = static_cast<float>((s.rss_mb - s_rate_ref_mb) / elapsed);
+            }
+        }
     }
 
     // ── CPU: rusage delta / wall-clock delta ─────────────────────────────────
@@ -723,7 +774,36 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
         ImGui::TextDisabled("CPU %02.0f%%", sys.cpu_pct);
         ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
 
-        ImGui::TextDisabled("Mem %.0f MB", sys.rss_mb);
+        // Memory: absolute + delta from post-warmup baseline + growth rate.
+        // During the first 10 s (warmup) just show absolute value.
+        // After warmup: "Mem X MB  +Y.Y MB  Z.Z MB/s"
+        // The growth rate colour: green ≈ stable, yellow = slow growth, red = fast growth.
+        if (sys.delta_mb == 0.0f && sys.growth_mbs == 0.0f) {
+            // Still in warmup — no baseline yet
+            ImGui::TextDisabled("Mem %.0f MB (warming up…)", sys.rss_mb);
+        } else {
+            ImGui::TextDisabled("Mem %.0f MB", sys.rss_mb);
+            ImGui::SameLine(0.0f, 6.0f);
+
+            // Delta sign and colour
+            const float abs_delta = sys.delta_mb >= 0.0f ? sys.delta_mb : -sys.delta_mb;
+            const char  sign      = sys.delta_mb >= 0.0f ? '+' : '-';
+            if (abs_delta < 1.0f)
+                ImGui::TextDisabled("%c%.1f MB", sign, abs_delta);
+            else
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "%c%.0f MB", sign, abs_delta);
+
+            // Growth rate (colour-coded; shown after baseline is stable)
+            if (sys.growth_mbs != 0.0f) {
+                ImGui::SameLine(0.0f, 8.0f);
+                const float rate = sys.growth_mbs;
+                ImVec4 col;
+                if      (rate <  0.05f) col = ImVec4(0.5f, 0.9f, 0.5f, 1.0f);   // green  ≈ stable
+                else if (rate <  0.5f)  col = ImVec4(1.0f, 0.8f, 0.2f, 1.0f);   // yellow = slow
+                else                    col = ImVec4(1.0f, 0.3f, 0.3f, 1.0f);   // red    = fast
+                ImGui::TextColored(col, "%.2f MB/s", rate);
+            }
+        }
 
         ImGui::PopStyleVar();
     }
