@@ -1,10 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gnc_viz/config.hpp"
+#include "fastscope/config.hpp"
 #include <filesystem>
 #include <fstream>
 
-using gnc_viz::Config;
-using gnc_viz::Palette;
+using fastscope::Config;
+using fastscope::Palette;
 
 TEST_CASE("Config default-constructs with sensible values", "[config]")
 {
@@ -36,7 +36,7 @@ TEST_CASE("Config round-trips through JSON save/load", "[config]")
     original.dark_theme        = false;
 
     // Write to a temp file
-    fs::path tmp = fs::temp_directory_path() / "gnc_viz_config_test.json";
+    fs::path tmp = fs::temp_directory_path() / "fastscope_config_test.json";
     REQUIRE(original.save(tmp));
 
     Config loaded = Config::load(tmp);
@@ -50,7 +50,7 @@ TEST_CASE("Config round-trips through JSON save/load", "[config]")
 
 TEST_CASE("Config::load returns defaults for non-existent file", "[config]")
 {
-    Config c = Config::load("/tmp/gnc_viz_no_such_file_xyz.json");
+    Config c = Config::load("/tmp/fastscope_no_such_file_xyz.json");
     REQUIRE(c.file_pane_width == 280.0f);
 }
 

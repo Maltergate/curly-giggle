@@ -1,6 +1,6 @@
-#include "gnc_viz/signal_metadata.hpp"
+#include "fastscope/signal_metadata.hpp"
 
-namespace gnc_viz {
+namespace fastscope {
 
 const char* data_type_name(DataType dt) noexcept
 {
@@ -16,4 +16,4 @@ const char* data_type_name(DataType dt) noexcept
     }
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

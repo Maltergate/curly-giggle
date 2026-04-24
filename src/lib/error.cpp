@@ -1,7 +1,7 @@
-#include "gnc_viz/error.hpp"
+#include "fastscope/error.hpp"
 #include <format>
 
-namespace gnc {
+namespace fastscope {
 
 std::string_view error_code_name(ErrorCode code) noexcept
 {
@@ -32,4 +32,4 @@ std::string Error::to_string() const
     return std::format("{}: {} [{}]", error_code_name(code), message, context);
 }
 
-} // namespace gnc
+} // namespace fastscope

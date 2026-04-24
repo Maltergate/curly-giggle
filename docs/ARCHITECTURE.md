@@ -1,8 +1,8 @@
-# GNC Viz — Architecture
+# FastScope — Architecture
 
 ## Introduction
 
-GNC Viz is a C++23 / Dear ImGui macOS desktop application for loading,
+FastScope is a C++23 / Dear ImGui macOS desktop application for loading,
 comparing, and visualising HDF5 output files from GNC (Guidance, Navigation &
 Control) spacecraft simulations.  It lets engineers open multiple `.h5` run
 files side-by-side, browse the full signal hierarchy, drag signals onto
@@ -29,7 +29,7 @@ plots, and export results to CSV/PNG.
 └──────────────────────────────────────────────────────────────────────┬──┘
                                                                        │
            ┌───────────────────────────────────────────────────────────┘
-           │            gnc_viz_lib  (pure C++, no UI)
+           │            fastscope_lib  (pure C++, no UI)
            ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
 │  SimulationFile → HDF5Reader → SignalBuffer                              │
@@ -42,14 +42,14 @@ The codebase is split into two CMake targets:
 
 | Target         | Language         | Key deps                       | Role                       |
 |----------------|------------------|--------------------------------|----------------------------|
-| `gnc_viz_lib`  | C++23            | HDF5, spdlog, nlohmann-json    | Data layer — fully testable without a display |
-| `gnc_viz`      | C++23 + ObjC++   | ImGui, ImPlot, Metal, GLFW     | UI application              |
+| `fastscope_lib`  | C++23            | HDF5, spdlog, nlohmann-json    | Data layer — fully testable without a display |
+| `fastscope`      | C++23 + ObjC++   | ImGui, ImPlot, Metal, GLFW     | UI application              |
 
 ---
 
 ## Key Classes
 
-### `AppState` (`include/gnc_viz/app_state.hpp`)
+### `AppState` (`include/fastscope/app_state.hpp`)
 Central data model.  A single instance lives inside `Application::Impl`.
 Contains:
 - `simulations` — open HDF5 files (`std::vector<unique_ptr<SimulationFile>>`)
@@ -62,13 +62,13 @@ Contains:
 
 AppState is not copyable (owns `unique_ptr` simulations).
 
-### `PlotEngine` (`include/gnc_viz/plot_engine.hpp`)
+### `PlotEngine` (`include/fastscope/plot_engine.hpp`)
 Owns a `PlotRegistry` and the currently active `IPlotType`.  Registered types:
 `timeseries`, `trajectory2d`, `groundtrack`.  Delegates `render()`,
 `on_activate()`, and `on_deactivate()` to the active type.  Exposes
 `fit_to_data()` / `fit_x_only()` as conveniences for the toolbar.
 
-### `AxisManager` (`include/gnc_viz/axis_manager.hpp`)
+### `AxisManager` (`include/fastscope/axis_manager.hpp`)
 Tracks which plotted signal (by `plot_key`) is on which Y axis (0–2) and
 stores the `AxisConfig` (label, units, range) for each axis.
 - `assign(key, axis_id)` — add / update assignment
@@ -76,35 +76,35 @@ stores the `AxisConfig` (label, units, range) for each axis.
 - `clear()` — reset both assignments and configs (used when all signals removed)
 - `active_axes()` — returns configs for axes that have at least one signal (axis 0 always included)
 
-### `TimeAligner` (`include/gnc_viz/time_aligner.hpp`)
+### `TimeAligner` (`include/fastscope/time_aligner.hpp`)
 Resamples N `SignalBuffer`s onto a common uniform time grid using linear
 interpolation.  Fast path: if all inputs share the same time vector, copies are
 returned without interpolation.  Used by `DerivedSignal` and future
 multi-simulation comparisons.
 
-### `ToolManager` (`include/gnc_viz/tool_manager.hpp`)
+### `ToolManager` (`include/fastscope/tool_manager.hpp`)
 Registry of `IVisualizationTool` factories.  `activate(id)` instantiates a
 tool or toggles it off if it is already active.  `tick(state)` is called once
 per frame from inside the `BeginPlot` block to let the tool draw overlays.
 Built-in tools: `annotation`, `ruler`.
 
-### `SimulationFile` (`include/gnc_viz/simulation_file.hpp`)
+### `SimulationFile` (`include/fastscope/simulation_file.hpp`)
 Wraps `HDF5Reader` with a `sim_id`, a user-selected time axis, and a
 `weak_ptr` buffer cache.  `load_signal(meta)` loads (or returns a cached)
 `SignalBuffer`.  Signals are enumerated lazily on `open()`.
 
-### `SignalBuffer` (`include/gnc_viz/signal_buffer.hpp`)
+### `SignalBuffer` (`include/fastscope/signal_buffer.hpp`)
 Immutable, ref-counted time + values storage.  Supports scalar and vector
 signals (N components).  Exposes `time()`, `values()`, `at(i)`, `at(i, k)`,
 `sample_count()`, `n_components()`.  Created via `SignalBuffer::make_vector()`
 or `SignalBuffer::make_span()` (zero-copy from a mapped HDF5 buffer).
 
-### `DerivedSignal` (`include/gnc_viz/derived_signal.hpp`)
+### `DerivedSignal` (`include/fastscope/derived_signal.hpp`)
 Computes a new `SignalBuffer` from N input buffers using a registered
 `ISignalOperation`.  Built-in operations (via `OperationRegistry`):
 `add`, `subtract`, `multiply`, `scale`, `magnitude`.
 
-### `Session` (`include/gnc_viz/session.hpp`)
+### `Session` (`include/fastscope/session.hpp`)
 JSON serialisation / deserialisation of `AppState`.  Schema version 1.
 `save_session()` writes pane state, plotted-signal metadata (not buffer data),
 and axis configs.  `load_session()` restores them; missing simulation files are
@@ -153,8 +153,8 @@ HDF5 file on disk
 
 ### Adding a new plot type
 
-1. Create `include/gnc_viz/my_plot.hpp` and `src/app/my_plot.cpp`.
-2. Inherit from `IPlotType` (in `include/gnc_viz/interfaces.hpp`).
+1. Create `include/fastscope/my_plot.hpp` and `src/app/my_plot.cpp`.
+2. Inherit from `IPlotType` (in `include/fastscope/interfaces.hpp`).
 3. Implement `name()`, `id()`, `render()`, `on_activate()`, `on_deactivate()`.
 4. Register in `PlotEngine::PlotEngine()`:
    ```cpp
@@ -164,7 +164,7 @@ HDF5 file on disk
 
 ### Adding a new tool
 
-1. Create header + source in `include/gnc_viz/` and `src/app/`.
+1. Create header + source in `include/fastscope/` and `src/app/`.
 2. Inherit from `IVisualizationTool`.
 3. Register the factory in `ToolManager::ToolManager()`.
 4. Add the source to `src/app/CMakeLists.txt` and `src/tests/CMakeLists.txt`
@@ -180,9 +180,9 @@ HDF5 file on disk
 
 ## Testing Approach
 
-All logic in `gnc_viz_lib` is tested headlessly via **Catch2 v3** in
-`src/tests/`.  The test binary (`gnc_viz_tests`) links:
-- `gnc_viz_lib` — full data layer
+All logic in `fastscope_lib` is tested headlessly via **Catch2 v3** in
+`src/tests/`.  The test binary (`fastscope_tests`) links:
+- `fastscope_lib` — full data layer
 - `imgui_lib` + `implot_lib` — needed for `ToolManager` + `AnnotationTool`
 - Selected `src/app/` sources: `tool_manager.cpp`, `annotation_tool.cpp`,
   `ruler_tool.cpp`
@@ -204,7 +204,7 @@ Test files by area:
 
 Run all tests:
 ```bash
-./build/bin/gnc_viz_tests
+./build/bin/fastscope_tests
 # or
 ctest --test-dir build -V
 ```

@@ -17,23 +17,23 @@
 #include "imgui_impl_metal.h"
 #include "implot.h"
 
-#include "gnc_viz/application.hpp"
-#include "gnc_viz/app_state.hpp"
-#include "gnc_viz/log.hpp"
-#include "gnc_viz/version.hpp"
-#include "gnc_viz/simulation_list_ui.hpp"
-#include "gnc_viz/signal_tree_widget.hpp"
-#include "gnc_viz/plot_engine.hpp"
-#include "gnc_viz/simulation_file.hpp"
-#include "gnc_viz/color_manager.hpp"
-#include "gnc_viz/file_open_dialog.hpp"
-#include "gnc_viz/csv_exporter.hpp"
-#include "gnc_viz/png_exporter.hpp"
-#include "gnc_viz/tool_manager.hpp"
-#include "gnc_viz/derived_signal.hpp"
-#include "gnc_viz/operation_registry.hpp"
-#include "gnc_viz/signal_metadata.hpp"
-#include "gnc_viz/session.hpp"
+#include "fastscope/application.hpp"
+#include "fastscope/app_state.hpp"
+#include "fastscope/log.hpp"
+#include "fastscope/version.hpp"
+#include "fastscope/simulation_list_ui.hpp"
+#include "fastscope/signal_tree_widget.hpp"
+#include "fastscope/plot_engine.hpp"
+#include "fastscope/simulation_file.hpp"
+#include "fastscope/color_manager.hpp"
+#include "fastscope/file_open_dialog.hpp"
+#include "fastscope/csv_exporter.hpp"
+#include "fastscope/png_exporter.hpp"
+#include "fastscope/tool_manager.hpp"
+#include "fastscope/derived_signal.hpp"
+#include "fastscope/operation_registry.hpp"
+#include "fastscope/signal_metadata.hpp"
+#include "fastscope/session.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -41,7 +41,7 @@
 #include <filesystem>
 #include <string>
 
-namespace gnc_viz {
+namespace fastscope {
 
 // ── forward declarations ───────────────────────────────────────────────────────
 static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& io);
@@ -78,21 +78,21 @@ bool Application::init(Config cfg)
     m_impl->config = cfg;
 
     // ── Logging ───────────────────────────────────────────────────────────────
-    gnc_viz::log::init({
-        .file_path = "gnc_viz.log",
+    fastscope::log::init({
+        .file_path = "fastscope.log",
         .console   = true,
         .file      = false,  // file log opt-in: avoid polluting cwd during dev
         .level     = spdlog::level::debug,
     });
-    GNC_LOG_INFO("GNC Viz {} starting up", gnc_viz::version());
+    FASTSCOPE_LOG_INFO("FastScope {} starting up", fastscope::version());
 
     // ── GLFW ──────────────────────────────────────────────────────────────────
     glfwSetErrorCallback([](int error, const char* description) {
-        GNC_LOG_ERROR("GLFW error {}: {}", error, description);
+        FASTSCOPE_LOG_ERROR("GLFW error {}: {}", error, description);
     });
 
     if (!glfwInit()) {
-        GNC_LOG_ERROR("Failed to initialise GLFW");
+        FASTSCOPE_LOG_ERROR("Failed to initialise GLFW");
         return false;
     }
 
@@ -104,7 +104,7 @@ bool Application::init(Config cfg)
     m_impl->window = glfwCreateWindow(cfg.width, cfg.height, title.c_str(),
                                       nullptr, nullptr);
     if (!m_impl->window) {
-        GNC_LOG_ERROR("Failed to create GLFW window");
+        FASTSCOPE_LOG_ERROR("Failed to create GLFW window");
         glfwTerminate();
         return false;
     }
@@ -123,16 +123,16 @@ bool Application::init(Config cfg)
             // case-insensitive extension check
             for (auto& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (ext != ".h5" && ext != ".hdf5") {
-                GNC_LOG_WARN("Dropped file ignored (not .h5/.hdf5): {}", paths[i]);
+                FASTSCOPE_LOG_WARN("Dropped file ignored (not .h5/.hdf5): {}", paths[i]);
                 continue;
             }
             const std::string id = "drop" + std::to_string(drop_counter++);
             auto sim = std::make_unique<SimulationFile>(id);
             if (auto res = sim->open(p); res) {
-                GNC_LOG_INFO("Dropped file opened: {}", paths[i]);
+                FASTSCOPE_LOG_INFO("Dropped file opened: {}", paths[i]);
                 impl->state.simulations.push_back(std::move(sim));
             } else {
-                GNC_LOG_ERROR("Drop open failed for {}: {}", paths[i], res.error().message);
+                FASTSCOPE_LOG_ERROR("Drop open failed for {}: {}", paths[i], res.error().message);
             }
         }
     });
@@ -140,7 +140,7 @@ bool Application::init(Config cfg)
     // ── Metal ─────────────────────────────────────────────────────────────────
     m_impl->device = MTLCreateSystemDefaultDevice();
     if (!m_impl->device) {
-        GNC_LOG_ERROR("Metal is not supported on this device");
+        FASTSCOPE_LOG_ERROR("Metal is not supported on this device");
         glfwDestroyWindow(m_impl->window);
         glfwTerminate();
         return false;
@@ -186,7 +186,7 @@ bool Application::init(Config cfg)
     m_impl->rpd.colorAttachments[0].clearColor  = MTLClearColorMake(0.10, 0.10, 0.12, 1.0);
 
     m_impl->initialized = true;
-    GNC_LOG_INFO("Application initialised");
+    FASTSCOPE_LOG_INFO("Application initialised");
 
     // Auto-restore last session (silently fails if no session file exists)
     load_session(m_impl->state);
@@ -313,7 +313,7 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
                         if (auto res = sim->open(p); res)
                             state.simulations.push_back(std::move(sim));
                         else
-                            GNC_LOG_ERROR("Open failed: {}", res.error().message);
+                            FASTSCOPE_LOG_ERROR("Open failed: {}", res.error().message);
                     }
                 }
             }
@@ -324,17 +324,17 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
                 if (res.confirmed && !res.path.empty()) {
                     auto r = export_csv(state, res.path);
                     if (r)
-                        GNC_LOG_INFO("CSV exported: {} rows to {}", *r, res.path.string());
+                        FASTSCOPE_LOG_INFO("CSV exported: {} rows to {}", *r, res.path.string());
                     else
-                        GNC_LOG_WARN("CSV export failed: {}", r.error().message);
+                        FASTSCOPE_LOG_WARN("CSV export failed: {}", r.error().message);
                 }
             }
             if (ImGui::MenuItem("Export PNG…")) {
                 auto res = show_save_dialog("Export PNG", {"png"});
                 if (res.confirmed && !res.path.empty()) {
-                    auto r = export_png("GNC Viz", res.path);
+                    auto r = export_png("FastScope", res.path);
                     if (!r)
-                        GNC_LOG_WARN("PNG export failed: {}", r.error().message);
+                        FASTSCOPE_LOG_WARN("PNG export failed: {}", r.error().message);
                 }
             }
             ImGui::Separator();
@@ -505,7 +505,7 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
                 static int  s_op_sel = 0;
                 static char s_name_buf[128] = "derived";
 
-                static auto op_reg = gnc_viz::create_operation_registry();
+                static auto op_reg = fastscope::create_operation_registry();
                 const auto& op_keys = op_reg.keys();
 
                 ImGui::Text("Operation:");
@@ -530,7 +530,7 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
                 ImGui::Separator();
 
                 if (ImGui::Button("Create")) {
-                    std::vector<std::shared_ptr<gnc_viz::SignalBuffer>> inputs;
+                    std::vector<std::shared_ptr<fastscope::SignalBuffer>> inputs;
                     for (int i = 0; i < static_cast<int>(state.plotted_signals.size()); ++i) {
                         if (s_input_sel[i] && state.plotted_signals[i].buffer)
                             inputs.push_back(state.plotted_signals[i].buffer);
@@ -538,7 +538,7 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
 
                     if (!inputs.empty() && s_op_sel < static_cast<int>(op_keys.size())) {
                         auto op = op_reg.create(op_keys[s_op_sel]);
-                        gnc_viz::DerivedSignal ds;
+                        fastscope::DerivedSignal ds;
                         ds.id = std::string("derived_") +
                                 std::to_string(state.plotted_signals.size());
                         ds.display_name = s_name_buf;
@@ -547,7 +547,7 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
 
                         auto result = ds.compute();
                         if (result) {
-                            gnc_viz::PlottedSignal ps;
+                            fastscope::PlottedSignal ps;
                             ps.sim_id       = "derived";
                             ps.meta.h5_path = ds.display_name;
                             ps.meta.name    = ds.display_name;
@@ -556,7 +556,7 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
                             ps.color_rgba   = state.colors.assign(ds.id);
                             state.plotted_signals.push_back(std::move(ps));
                         } else {
-                            GNC_LOG_WARN("Derived signal compute failed: {}",
+                            FASTSCOPE_LOG_WARN("Derived signal compute failed: {}",
                                          result.error().message);
                         }
                     }
@@ -663,7 +663,7 @@ void Application::shutdown()
 {
     if (!m_impl->initialized) return;
 
-    GNC_LOG_INFO("Shutting down");
+    FASTSCOPE_LOG_INFO("Shutting down");
 
     ImGui_ImplMetal_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -675,7 +675,7 @@ void Application::shutdown()
     glfwTerminate();
 
     m_impl->initialized = false;
-    gnc_viz::log::shutdown();
+    fastscope::log::shutdown();
 }
 
 bool Application::is_initialized() const noexcept
@@ -683,4 +683,4 @@ bool Application::is_initialized() const noexcept
     return m_impl && m_impl->initialized;
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

@@ -3,8 +3,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
-#include "gnc_viz/session.hpp"
-#include "gnc_viz/app_state.hpp"
+#include "fastscope/session.hpp"
+#include "fastscope/app_state.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -13,10 +13,10 @@
 #include <string>
 
 namespace fs = std::filesystem;
-using namespace gnc_viz;
+using namespace fastscope;
 
 // Shared temp path used across tests (cleaned up by each test that writes it)
-static const fs::path k_tmp = fs::temp_directory_path() / "gnc_viz_test_session.json";
+static const fs::path k_tmp = fs::temp_directory_path() / "fastscope_test_session.json";
 
 static void remove_tmp()
 {
@@ -26,19 +26,19 @@ static void remove_tmp()
 
 // ── 1. default_session_path() is under HOME ───────────────────────────────────
 
-TEST_CASE("default_session_path returns path under HOME with gnc_viz component", "[session]")
+TEST_CASE("default_session_path returns path under HOME with fastscope component", "[session]")
 {
     const fs::path p = default_session_path();
 
-    // Must contain "gnc_viz" somewhere in the path hierarchy
-    bool has_gnc_viz = false;
+    // Must contain "fastscope" somewhere in the path hierarchy
+    bool has_fastscope = false;
     for (const auto& part : p) {
-        if (part.string().find("gnc_viz") != std::string::npos) {
-            has_gnc_viz = true;
+        if (part.string().find("fastscope") != std::string::npos) {
+            has_fastscope = true;
             break;
         }
     }
-    REQUIRE(has_gnc_viz);
+    REQUIRE(has_fastscope);
 
     // Must be under HOME (or cwd as fallback)
     const char* home = std::getenv("HOME");

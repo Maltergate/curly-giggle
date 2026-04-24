@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gnc_viz/app_state.hpp"
+#include "fastscope/app_state.hpp"
 
-using gnc_viz::AppState;
+using fastscope::AppState;
 
 TEST_CASE("AppState default-constructs", "[app_state]")
 {

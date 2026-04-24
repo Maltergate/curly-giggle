@@ -1,18 +1,18 @@
 // simulation_list_ui.cpp — Left pane: load and manage simulation files
 
-#include "gnc_viz/simulation_list_ui.hpp"
-#include "gnc_viz/app_state.hpp"
-#include "gnc_viz/file_open_dialog.hpp"
-#include "gnc_viz/simulation_file.hpp"
-#include "gnc_viz/plotted_signal.hpp"
-#include "gnc_viz/log.hpp"
+#include "fastscope/simulation_list_ui.hpp"
+#include "fastscope/app_state.hpp"
+#include "fastscope/file_open_dialog.hpp"
+#include "fastscope/simulation_file.hpp"
+#include "fastscope/plotted_signal.hpp"
+#include "fastscope/log.hpp"
 
 #include "imgui.h"
 
 #include <algorithm>
 #include <string>
 
-namespace gnc_viz {
+namespace fastscope {
 
 // Counter for unique sim_ids — persists across calls (file-scoped).
 static int s_sim_counter = 0;
@@ -37,7 +37,7 @@ void render_simulation_list(AppState& state)
                 if (auto res = sim->open(p); res)
                     state.simulations.push_back(std::move(sim));
                 else
-                    GNC_LOG_ERROR("Failed to open '{}': {}", p.string(), res.error().message);
+                    FASTSCOPE_LOG_ERROR("Failed to open '{}': {}", p.string(), res.error().message);
             }
         }
     }
@@ -153,4 +153,4 @@ void render_simulation_list(AppState& state)
     }
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

@@ -1,9 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gnc_viz/signal_metadata.hpp"
+#include "fastscope/signal_metadata.hpp"
 
-using gnc_viz::SignalMetadata;
-using gnc_viz::DataType;
-using gnc_viz::data_type_name;
+using fastscope::SignalMetadata;
+using fastscope::DataType;
+using fastscope::data_type_name;
 
 TEST_CASE("SignalMetadata default-constructs", "[signal_metadata]")
 {

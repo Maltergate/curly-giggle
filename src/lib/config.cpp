@@ -1,10 +1,10 @@
-#include "gnc_viz/config.hpp"
-#include "gnc_viz/log.hpp"
+#include "fastscope/config.hpp"
+#include "fastscope/log.hpp"
 
 #include <nlohmann/json.hpp>
 #include <fstream>
 
-namespace gnc_viz {
+namespace fastscope {
 
 // ── JSON serialisation helpers ────────────────────────────────────────────────
 
@@ -49,29 +49,29 @@ std::filesystem::path Config::default_path()
 {
     const char* home = std::getenv("HOME");
     std::filesystem::path base = home ? std::filesystem::path(home) : std::filesystem::current_path();
-    return base / ".gnc_viz" / "config.json";
+    return base / ".fastscope" / "config.json";
 }
 
 Config Config::load(const std::filesystem::path& path)
 {
     Config cfg;
     if (!std::filesystem::exists(path)) {
-        GNC_LOG_DEBUG("Config file not found at {}, using defaults", path.string());
+        FASTSCOPE_LOG_DEBUG("Config file not found at {}, using defaults", path.string());
         return cfg;
     }
 
     try {
         std::ifstream f(path);
         if (!f.is_open()) {
-            GNC_LOG_WARN("Cannot open config file: {}", path.string());
+            FASTSCOPE_LOG_WARN("Cannot open config file: {}", path.string());
             return cfg;
         }
         nlohmann::json j;
         f >> j;
         from_json(j, cfg);
-        GNC_LOG_INFO("Config loaded from {}", path.string());
+        FASTSCOPE_LOG_INFO("Config loaded from {}", path.string());
     } catch (const std::exception& e) {
-        GNC_LOG_WARN("Failed to parse config ({}): {} — using defaults", path.string(), e.what());
+        FASTSCOPE_LOG_WARN("Failed to parse config ({}): {} — using defaults", path.string(), e.what());
     }
     return cfg;
 }
@@ -82,18 +82,18 @@ bool Config::save(const std::filesystem::path& path) const
         std::filesystem::create_directories(path.parent_path());
         std::ofstream f(path);
         if (!f.is_open()) {
-            GNC_LOG_WARN("Cannot write config to: {}", path.string());
+            FASTSCOPE_LOG_WARN("Cannot write config to: {}", path.string());
             return false;
         }
         nlohmann::json j;
         to_json(j, *this);
         f << j.dump(2) << "\n";
-        GNC_LOG_DEBUG("Config saved to {}", path.string());
+        FASTSCOPE_LOG_DEBUG("Config saved to {}", path.string());
         return true;
     } catch (const std::exception& e) {
-        GNC_LOG_WARN("Config save failed: {}", e.what());
+        FASTSCOPE_LOG_WARN("Config save failed: {}", e.what());
         return false;
     }
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

@@ -1,5 +1,5 @@
-#include "gnc_viz/hdf5_reader.hpp"
-#include "gnc_viz/log.hpp"
+#include "fastscope/hdf5_reader.hpp"
+#include "fastscope/log.hpp"
 
 #include <hdf5.h>
 
@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace gnc_viz {
+namespace fastscope {
 
 // ── Impl ───────────────────────────────────────────────────────────────────────
 
@@ -42,13 +42,13 @@ static DataType hdf5_to_dtype(hid_t type_id) noexcept
 // ── Helper: read a 1-D (or Nx1) dataset as vector<double> ────────────────────
 // Accepts shapes (N,) and (N, 1) — both occur in real simulation files.
 
-static gnc::Result<std::vector<double>>
+static fastscope::Result<std::vector<double>>
 read_1d_doubles(hid_t file_id, const std::string& ds_path)
 {
     const hid_t ds = H5Dopen2(file_id, ds_path.c_str(), H5P_DEFAULT);
     if (ds < 0)
-        return gnc::make_error<std::vector<double>>(
-            gnc::ErrorCode::NotFound,
+        return fastscope::make_error<std::vector<double>>(
+            fastscope::ErrorCode::NotFound,
             "HDF5 dataset not found: " + ds_path);
 
     hid_t space = H5Dget_space(ds);
@@ -61,8 +61,8 @@ read_1d_doubles(hid_t file_id, const std::string& ds_path)
     const bool ok = (ndims == 1) || (ndims == 2 && dims[1] == 1);
     if (!ok) {
         H5Dclose(ds);
-        return gnc::make_error<std::vector<double>>(
-            gnc::ErrorCode::InvalidArgument,
+        return fastscope::make_error<std::vector<double>>(
+            fastscope::ErrorCode::InvalidArgument,
             ds_path + " is not 1-D (shape must be (N,) or (N,1))");
     }
 
@@ -71,8 +71,8 @@ read_1d_doubles(hid_t file_id, const std::string& ds_path)
                                 H5P_DEFAULT, out.data());
     H5Dclose(ds);
     if (err < 0)
-        return gnc::make_error<std::vector<double>>(
-            gnc::ErrorCode::IOError,
+        return fastscope::make_error<std::vector<double>>(
+            fastscope::ErrorCode::IOError,
             "H5Dread failed for " + ds_path);
     return out;
 }
@@ -203,12 +203,12 @@ HDF5Reader::~HDF5Reader() { close(); }
 HDF5Reader::HDF5Reader(HDF5Reader&&) noexcept = default;
 HDF5Reader& HDF5Reader::operator=(HDF5Reader&&) noexcept = default;
 
-gnc::VoidResult HDF5Reader::open(const std::filesystem::path& path)
+fastscope::VoidResult HDF5Reader::open(const std::filesystem::path& path)
 {
     if (is_open()) close();
 
     if (!std::filesystem::exists(path))
-        return gnc::make_void_error(gnc::ErrorCode::NotFound,
+        return fastscope::make_void_error(fastscope::ErrorCode::NotFound,
                                     "File not found: " + path.string());
 
     // Suppress HDF5 error printing to stderr
@@ -216,12 +216,12 @@ gnc::VoidResult HDF5Reader::open(const std::filesystem::path& path)
 
     const hid_t fid = H5Fopen(path.string().c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
     if (fid < 0)
-        return gnc::make_void_error(gnc::ErrorCode::IOError,
+        return fastscope::make_void_error(fastscope::ErrorCode::IOError,
                                     "H5Fopen failed: " + path.string());
 
     m_impl->file_id = fid;
     m_impl->path    = path;
-    GNC_LOG_INFO("HDF5: opened {}", path.string());
+    FASTSCOPE_LOG_INFO("HDF5: opened {}", path.string());
     return {};
 }
 
@@ -244,12 +244,12 @@ const std::filesystem::path& HDF5Reader::path() const noexcept
     return m_impl ? m_impl->path : empty;
 }
 
-gnc::Result<std::vector<SignalMetadata>>
+fastscope::Result<std::vector<SignalMetadata>>
 HDF5Reader::enumerate_signals(const std::string& sim_id) const
 {
     if (!is_open())
-        return gnc::make_error<std::vector<SignalMetadata>>(
-            gnc::ErrorCode::InvalidState, "File not open");
+        return fastscope::make_error<std::vector<SignalMetadata>>(
+            fastscope::ErrorCode::InvalidState, "File not open");
 
     std::vector<SignalMetadata> out;
     EnumContext ctx{m_impl->file_id, &out, sim_id};
@@ -257,10 +257,10 @@ HDF5Reader::enumerate_signals(const std::string& sim_id) const
     const herr_t err = H5Lvisit2(m_impl->file_id, H5_INDEX_NAME,
                                    H5_ITER_NATIVE, enum_visitor, &ctx);
     if (err < 0)
-        return gnc::make_error<std::vector<SignalMetadata>>(
-            gnc::ErrorCode::IOError, "H5Lvisit2 failed");
+        return fastscope::make_error<std::vector<SignalMetadata>>(
+            fastscope::ErrorCode::IOError, "H5Lvisit2 failed");
 
-    GNC_LOG_DEBUG("HDF5: enumerated {} datasets in {}", out.size(), m_impl->path.string());
+    FASTSCOPE_LOG_DEBUG("HDF5: enumerated {} datasets in {}", out.size(), m_impl->path.string());
     return out;
 }
 
@@ -275,18 +275,18 @@ std::vector<std::string> HDF5Reader::suggest_time_axes() const
     return candidates;
 }
 
-gnc::Result<std::shared_ptr<SignalBuffer>>
+fastscope::Result<std::shared_ptr<SignalBuffer>>
 HDF5Reader::load_signal(const SignalMetadata& meta) const
 {
     if (!is_open())
-        return gnc::make_error<std::shared_ptr<SignalBuffer>>(
-            gnc::ErrorCode::InvalidState, "File not open");
+        return fastscope::make_error<std::shared_ptr<SignalBuffer>>(
+            fastscope::ErrorCode::InvalidState, "File not open");
 
     // Open signal dataset
     const hid_t ds = H5Dopen2(m_impl->file_id, meta.h5_path.c_str(), H5P_DEFAULT);
     if (ds < 0)
-        return gnc::make_error<std::shared_ptr<SignalBuffer>>(
-            gnc::ErrorCode::NotFound,
+        return fastscope::make_error<std::shared_ptr<SignalBuffer>>(
+            fastscope::ErrorCode::NotFound,
             "Dataset not found: " + meta.h5_path);
 
     hid_t space = H5Dget_space(ds);
@@ -310,8 +310,8 @@ HDF5Reader::load_signal(const SignalMetadata& meta) const
                                 H5P_DEFAULT, values.data());
     H5Dclose(ds);
     if (err < 0)
-        return gnc::make_error<std::shared_ptr<SignalBuffer>>(
-            gnc::ErrorCode::IOError,
+        return fastscope::make_error<std::shared_ptr<SignalBuffer>>(
+            fastscope::ErrorCode::IOError,
             "H5Dread failed for " + meta.h5_path);
 
     // Time axis: use meta.time_path if set; otherwise synthesise sample index
@@ -319,7 +319,7 @@ HDF5Reader::load_signal(const SignalMetadata& meta) const
     if (!meta.time_path.empty()) {
         auto time_res = read_1d_doubles(m_impl->file_id, meta.time_path);
         if (!time_res)
-            return gnc::make_error<std::shared_ptr<SignalBuffer>>(
+            return fastscope::make_error<std::shared_ptr<SignalBuffer>>(
                 time_res.error().code,
                 "Time axis '" + meta.time_path + "': " + time_res.error().message);
         time_vec = std::move(*time_res);
@@ -335,4 +335,4 @@ HDF5Reader::load_signal(const SignalMetadata& meta) const
     return buf;
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

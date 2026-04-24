@@ -1,4 +1,4 @@
-#include "gnc_viz/log.hpp"
+#include "fastscope/log.hpp"
 
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/rotating_file_sink.h>
@@ -7,7 +7,7 @@
 #include <mutex>
 #include <vector>
 
-namespace gnc_viz::log {
+namespace fastscope::log {
 
 namespace {
     std::shared_ptr<spdlog::logger> g_logger;
@@ -39,7 +39,7 @@ void init(Config cfg)
             sinks.push_back(std::move(file_sink));
         }
 
-        g_logger = std::make_shared<spdlog::logger>("gnc_viz", sinks.begin(), sinks.end());
+        g_logger = std::make_shared<spdlog::logger>("fastscope", sinks.begin(), sinks.end());
         g_logger->set_level(cfg.level);
         g_logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%s:%#] %v");
         spdlog::register_logger(g_logger);
@@ -59,4 +59,4 @@ std::shared_ptr<spdlog::logger> get()
     return g_logger ? g_logger : spdlog::default_logger();
 }
 
-} // namespace gnc_viz::log
+} // namespace fastscope::log

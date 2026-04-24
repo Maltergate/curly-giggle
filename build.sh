@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build.sh — configure, build, and test gnc_viz
+# build.sh — configure, build, and test fastscope
 #
 # Usage:
 #   ./build.sh              — incremental Debug build + tests
@@ -44,4 +44,4 @@ fi
 
 echo ""
 echo "✓ Build complete (${BUILD_TYPE})"
-echo "  Binary: ${BUILD_DIR}/bin/gnc_viz"
+echo "  Binary: ${BUILD_DIR}/bin/fastscope"

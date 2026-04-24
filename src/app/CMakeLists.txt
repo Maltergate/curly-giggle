@@ -1,4 +1,4 @@
-add_executable(gnc_viz
+add_executable(fastscope
     main.mm
     application.mm
     collapsible_pane.cpp
@@ -14,31 +14,31 @@ add_executable(gnc_viz
     ruler_tool.cpp
 )
 
-target_compile_definitions(gnc_viz PRIVATE
+target_compile_definitions(fastscope PRIVATE
     GLFW_EXPOSE_NATIVE_COCOA   # needed for glfwGetCocoaWindow()
 )
 
-target_link_libraries(gnc_viz PRIVATE
-    gnc_viz_lib
+target_link_libraries(fastscope PRIVATE
+    fastscope_lib
     imgui_lib
     implot_lib
     "-framework UniformTypeIdentifiers"
 )
 
-gnc_viz_set_compile_options(gnc_viz)
+fastscope_set_compile_options(fastscope)
 
 # Copy compile_commands.json to project root for clangd
-add_custom_command(TARGET gnc_viz POST_BUILD
+add_custom_command(TARGET fastscope POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_BINARY_DIR}/compile_commands.json
         ${CMAKE_SOURCE_DIR}/compile_commands.json
     COMMENT "Copying compile_commands.json to project root"
 )
 
-gnc_viz_set_compile_options(gnc_viz)
+fastscope_set_compile_options(fastscope)
 
 # Copy compile_commands.json to project root for clangd
-add_custom_command(TARGET gnc_viz POST_BUILD
+add_custom_command(TARGET fastscope POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_BINARY_DIR}/compile_commands.json
         ${CMAKE_SOURCE_DIR}/compile_commands.json

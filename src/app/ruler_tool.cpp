@@ -1,7 +1,7 @@
 // ruler_tool.cpp — RulerTool implementation
 
-#include "gnc_viz/ruler_tool.hpp"
-#include "gnc_viz/app_state.hpp"
+#include "fastscope/ruler_tool.hpp"
+#include "fastscope/app_state.hpp"
 
 #include "imgui.h"
 #include "implot.h"
@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <cstdio>
 
-namespace gnc_viz {
+namespace fastscope {
 
 void RulerTool::handle_input(AppState& /*state*/)
 {
@@ -107,4 +107,4 @@ void RulerTool::render_overlay(const AppState& /*state*/)
     }
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

@@ -1,8 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gnc_viz/interfaces.hpp"
-#include "gnc_viz/app_state.hpp"
+#include "fastscope/interfaces.hpp"
+#include "fastscope/app_state.hpp"
 
-using namespace gnc_viz;
+using namespace fastscope;
 
 // ── Minimal concrete implementations for testing ──────────────────────────────
 
@@ -17,11 +17,11 @@ struct MockSignalOp : ISignalOperation {
     std::string_view name()        const noexcept override { return "Mock Op"; }
     std::string_view id()          const noexcept override { return "mock_op"; }
     int              input_count() const noexcept override { return 2; }
-    gnc::Result<std::shared_ptr<SignalBuffer>>
+    fastscope::Result<std::shared_ptr<SignalBuffer>>
     execute(std::span<const std::shared_ptr<SignalBuffer>>) override {
         called = true;
-        return gnc::make_error<std::shared_ptr<SignalBuffer>>(
-            gnc::ErrorCode::Unknown, "not implemented in mock");
+        return fastscope::make_error<std::shared_ptr<SignalBuffer>>(
+            fastscope::ErrorCode::Unknown, "not implemented in mock");
     }
     bool called = false;
 };
@@ -78,7 +78,7 @@ TEST_CASE("ISignalOperation virtual methods dispatch correctly", "[interfaces]")
     auto result = op.execute(inputs);
     REQUIRE(op.called == true);
     REQUIRE(!result.has_value());
-    REQUIRE(result.error().code == gnc::ErrorCode::Unknown);
+    REQUIRE(result.error().code == fastscope::ErrorCode::Unknown);
 }
 
 // ── IVisualizationTool concept checks ─────────────────────────────────────────

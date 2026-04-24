@@ -1,25 +1,25 @@
 // simulation_file.cpp — SimulationFile implementation
 
-#include "gnc_viz/simulation_file.hpp"
-#include "gnc_viz/log.hpp"
+#include "fastscope/simulation_file.hpp"
+#include "fastscope/log.hpp"
 
-namespace gnc_viz {
+namespace fastscope {
 
 SimulationFile::SimulationFile(std::string sim_id)
     : m_sim_id(std::move(sim_id)) {}
 
-gnc::Result<void> SimulationFile::open(const std::filesystem::path& path)
+fastscope::Result<void> SimulationFile::open(const std::filesystem::path& path)
 {
     m_path = path;
     m_display_name = path.filename().string();
 
     if (auto r = m_reader.open(path.string()); !r)
-        return gnc::make_error<void>(r.error().code, r.error().message);
+        return fastscope::make_error<void>(r.error().code, r.error().message);
 
     auto sigs = m_reader.enumerate_signals(m_sim_id);
     if (!sigs) {
         m_reader.close();
-        return gnc::make_error<void>(sigs.error().code, sigs.error().message);
+        return fastscope::make_error<void>(sigs.error().code, sigs.error().message);
     }
     m_signals = std::move(*sigs);
 
@@ -27,7 +27,7 @@ gnc::Result<void> SimulationFile::open(const std::filesystem::path& path)
     if (!m_time_hints.empty())
         m_time_axis = m_time_hints[0];  // auto-select best guess
 
-    GNC_LOG_INFO("SimulationFile[{}]: opened '{}' — {} datasets, time_axis='{}'",
+    FASTSCOPE_LOG_INFO("SimulationFile[{}]: opened '{}' — {} datasets, time_axis='{}'",
                  m_sim_id, path.filename().string(), m_signals.size(), m_time_axis);
     return {};
 }
@@ -41,7 +41,7 @@ void SimulationFile::close()
 
 bool SimulationFile::is_open() const noexcept { return m_reader.is_open(); }
 
-gnc::Result<std::shared_ptr<SignalBuffer>>
+fastscope::Result<std::shared_ptr<SignalBuffer>>
 SimulationFile::load_signal(const SignalMetadata& meta)
 {
     // Return cached buffer if still alive
@@ -62,4 +62,4 @@ SimulationFile::load_signal(const SignalMetadata& meta)
 
 void SimulationFile::evict_cache() { m_cache.clear(); }
 
-} // namespace gnc_viz
+} // namespace fastscope
