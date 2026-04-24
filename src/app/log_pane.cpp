@@ -1,4 +1,4 @@
-// log_pane.cpp — Full-width horizontal pane showing recent application log entries.
+// log_pane.cpp — Floating log window showing recent application log entries.
 
 #include "fastscope/log_pane.hpp"
 #include "fastscope/ui_log_sink.hpp"
@@ -17,14 +17,14 @@ ImVec4 level_color(spdlog::level::level_enum lvl) noexcept
     switch (lvl) {
         case spdlog::level::trace:
         case spdlog::level::debug:
-            return ImVec4(0.50f, 0.50f, 0.50f, 1.0f);   // grey
+            return ImVec4(0.50f, 0.50f, 0.50f, 1.0f);
         case spdlog::level::warn:
-            return ImVec4(1.00f, 0.80f, 0.20f, 1.0f);   // yellow
+            return ImVec4(1.00f, 0.80f, 0.20f, 1.0f);
         case spdlog::level::err:
         case spdlog::level::critical:
-            return ImVec4(1.00f, 0.30f, 0.30f, 1.0f);   // red
+            return ImVec4(1.00f, 0.30f, 0.30f, 1.0f);
         default:
-            return ImVec4(0.90f, 0.90f, 0.90f, 1.0f);   // near-white for info
+            return ImVec4(0.90f, 0.90f, 0.90f, 1.0f);
     }
 }
 
@@ -43,50 +43,46 @@ const char* level_prefix(spdlog::level::level_enum lvl) noexcept
 
 }  // namespace
 
-void render_log_pane(float width, float height)
+void render_log_window(bool* open)
 {
     UILogSink* sink = ui_log_sink();
 
-    // ── Per-frame state ───────────────────────────────────────────────────────
-    static int                    s_last_gen = -1;
+    static int                     s_last_gen = -1;
     static std::vector<UILogEntry> s_entries;
 
-    const int cur_gen   = sink ? sink->generation() : 0;
-    const bool new_data = (cur_gen != s_last_gen);
+    // Set a reasonable default size on first show
+    ImGui::SetNextWindowSize(ImVec2(700.0f, 250.0f), ImGuiCond_FirstUseEver);
 
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.08f, 0.08f, 0.10f, 0.95f));
+    const bool visible = ImGui::Begin("Log##LogWindow", open);
+    ImGui::PopStyleColor();
+
+    if (!visible) {
+        ImGui::End();
+        return;
+    }
+
+    // Refresh entries when the sink has new data
+    const int cur_gen  = sink ? sink->generation() : 0;
+    const bool new_data = (cur_gen != s_last_gen);
     if (sink && new_data) {
         s_entries  = sink->snapshot();
         s_last_gen = cur_gen;
     }
 
-    // ── Header row ────────────────────────────────────────────────────────────
-    constexpr float header_h = 22.0f;
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.11f, 0.11f, 0.14f, 1.0f));
-    ImGui::BeginChild("##LogHeader", ImVec2(width, header_h), ImGuiChildFlags_None);
-
-    ImGui::SetCursorPosY(3.0f);
-    ImGui::SetCursorPosX(8.0f);
-    ImGui::TextDisabled("LOG");
-
-    const float btn_x = width - 52.0f;
-    if (btn_x > 50.0f) {
-        ImGui::SameLine(btn_x);
-        if (ImGui::SmallButton("Clear") && sink) {
-            sink->clear();
-            s_entries.clear();
-            s_last_gen = sink->generation();
-        }
+    // Clear button aligned to the right
+    const float btn_w = ImGui::CalcTextSize("Clear").x + ImGui::GetStyle().FramePadding.x * 2.0f;
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - btn_w);
+    if (ImGui::SmallButton("Clear") && sink) {
+        sink->clear();
+        s_entries.clear();
+        s_last_gen = sink->generation();
     }
 
-    ImGui::EndChild();
-    ImGui::PopStyleColor();
+    ImGui::Separator();
 
-    // ── Scrollable content ────────────────────────────────────────────────────
-    const float scroll_h = height - header_h;
-    if (scroll_h < 4.0f) return;
-
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.08f, 0.08f, 0.10f, 1.0f));
-    ImGui::BeginChild("##LogScroll", ImVec2(width, scroll_h),
+    // Scrollable log body
+    ImGui::BeginChild("##LogBody", ImVec2(0.0f, 0.0f),
                        ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
 
     ImGuiListClipper clipper;
@@ -102,12 +98,11 @@ void render_log_pane(float width, float height)
     }
     clipper.End();
 
-    // Auto-scroll to bottom when new entries arrive
     if (new_data)
         ImGui::SetScrollHereY(1.0f);
 
     ImGui::EndChild();
-    ImGui::PopStyleColor();
+    ImGui::End();
 }
 
 } // namespace fastscope

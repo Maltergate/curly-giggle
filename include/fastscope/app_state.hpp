@@ -26,9 +26,8 @@ struct PaneState {
     float file_pane_width     = 280.0f;
     float signal_pane_width   = 300.0f;
 
-    /// Log pane at the bottom of the window.
-    bool  log_pane_visible = true;
-    float log_pane_height  = 130.0f;   ///< Height of the log pane in pixels.
+    /// Whether the floating log window is shown.
+    bool log_pane_visible = false;
 };
 
 // ── Demo / debug toggles ───────────────────────────────────────────────────────

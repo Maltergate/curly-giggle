@@ -23,12 +23,8 @@ fastscope::Result<void> SimulationFile::open(const std::filesystem::path& path)
     }
     m_signals = std::move(*sigs);
 
-    m_time_hints = m_reader.suggest_time_axes();
-    if (!m_time_hints.empty())
-        m_time_axis = m_time_hints[0];  // auto-select best guess
-
-    FASTSCOPE_LOG_INFO("SimulationFile[{}]: opened '{}' — {} datasets, time_axis='{}'",
-                 m_sim_id, path.filename().string(), m_signals.size(), m_time_axis);
+    FASTSCOPE_LOG_INFO("SimulationFile[{}]: opened '{}' — {} datasets",
+                 m_sim_id, path.filename().string(), m_signals.size());
     return {};
 }
 
@@ -49,14 +45,11 @@ SimulationFile::load_signal(const SignalMetadata& meta)
         if (auto sp = it->second.lock())
             return sp;
 
-    // Set time axis on a copy of meta and load
-    SignalMetadata m = meta;
-    m.time_path      = m_time_axis;
-
-    auto res = m_reader.load_signal(m);
+    // Load signal — time_path is already set in meta from enumeration
+    auto res = m_reader.load_signal(meta);
     if (!res) return res;
 
-    m_cache[meta.h5_path] = *res;  // keep weak reference
+    m_cache[meta.h5_path] = *res;
     return res;
 }
 

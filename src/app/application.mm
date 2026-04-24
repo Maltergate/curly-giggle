@@ -47,7 +47,6 @@ namespace fastscope {
 // ── forward declarations ───────────────────────────────────────────────────────
 static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& io);
 static void draw_vertical_splitter(const char* id, float* width, float avail_w);
-static void draw_horizontal_splitter(const char* id, float* height, float avail_h);
 // ── PIMPL — holds all ObjC / Metal / GLFW state ───────────────────────────────
 
 struct Application::Impl {
@@ -278,24 +277,6 @@ static void draw_vertical_splitter(const char* id, float* width, float avail_w)
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 }
 
-static void draw_horizontal_splitter(const char* id, float* height, float avail_h)
-{
-    const float w   = ImGui::GetContentRegionAvail().x;
-    const ImVec2 pos = ImGui::GetCursorScreenPos();
-    ImGui::GetWindowDrawList()->AddRectFilled(
-        pos, ImVec2(pos.x + w, pos.y + 4.0f),
-        IM_COL32(60, 60, 65, 255));
-
-    ImGui::InvisibleButton(id, ImVec2(w, 4.0f));
-
-    if (ImGui::IsItemActive()) {
-        *height -= ImGui::GetIO().MouseDelta.y;
-        *height = std::clamp(*height, 40.0f, avail_h - 40.0f);
-    }
-    if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-}
-
 // ── Three-pane layout + UI composition ────────────────────────────────────────
 
 static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& io)
@@ -311,7 +292,8 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
         ImGuiWindowFlags_NoDocking         | ImGuiWindowFlags_NoTitleBar    |
         ImGuiWindowFlags_NoCollapse        | ImGuiWindowFlags_NoResize      |
         ImGuiWindowFlags_NoMove            | ImGuiWindowFlags_NoBringToFrontOnFocus |
-        ImGuiWindowFlags_NoNavFocus        | ImGuiWindowFlags_MenuBar;
+        ImGuiWindowFlags_NoNavFocus        | ImGuiWindowFlags_MenuBar       |
+        ImGuiWindowFlags_NoScrollbar       | ImGuiWindowFlags_NoScrollWithMouse;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,   0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
@@ -372,26 +354,20 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
         if (ImGui::BeginMenu("View")) {
             ImGui::MenuItem("Files pane",   nullptr, &state.panes.file_pane_visible);
             ImGui::MenuItem("Signals pane", nullptr, &state.panes.signal_pane_visible);
-            ImGui::MenuItem("Log pane",     nullptr, &state.panes.log_pane_visible);
+            ImGui::MenuItem("Log window",   nullptr, &state.panes.log_pane_visible);
             ImGui::Separator();
             ImGui::MenuItem("ImGui Demo",   nullptr, &state.debug.show_imgui_demo);
             ImGui::MenuItem("ImPlot Demo",  nullptr, &state.debug.show_implot_demo);
             ImGui::MenuItem("Metrics",      nullptr, &state.debug.show_metrics);
             ImGui::EndMenu();
         }
-        ImGui::Text("%.0f fps", io.Framerate);
         ImGui::EndMenuBar();
     }
 
     // ── Three-pane layout ─────────────────────────────────────────────────────
     const float avail_w = ImGui::GetContentRegionAvail().x;
     constexpr float status_bar_h = 22.0f;
-    constexpr float splitter_h   = 4.0f;
-    const float log_h = state.panes.log_pane_visible
-                      ? state.panes.log_pane_height : 0.0f;
-    const float log_splitter_h = state.panes.log_pane_visible ? splitter_h : 0.0f;
-    const float avail_h = ImGui::GetContentRegionAvail().y
-                        - status_bar_h - log_h - log_splitter_h;
+    const float avail_h = ImGui::GetContentRegionAvail().y - status_bar_h;
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
 
@@ -651,13 +627,6 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
 
     ImGui::PopStyleVar();  // ItemSpacing
 
-    // ── Log pane (full width, resizable, below the three-pane area) ───────────
-    if (state.panes.log_pane_visible) {
-        draw_horizontal_splitter("##split_log", &state.panes.log_pane_height,
-                                  ImGui::GetContentRegionAvail().y - status_bar_h);
-        render_log_pane(avail_w, state.panes.log_pane_height);
-    }
-
     // ── Status bar ────────────────────────────────────────────────────────────
     {
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.13f, 0.13f, 0.16f, 1.0f));
@@ -665,10 +634,6 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 0.0f));
         ImGui::SetCursorPosY(4.0f);
         ImGui::SetCursorPosX(8.0f);
-        ImGui::Text("%.0f fps", io.Framerate);
-        ImGui::SameLine(0.0f, 12.0f);
-        ImGui::TextDisabled("|");
-        ImGui::SameLine(0.0f, 12.0f);
         const std::size_t n_sims = state.simulations.size();
         ImGui::Text("%zu simulation%s", n_sims, n_sims == 1 ? "" : "s");
         ImGui::SameLine(0.0f, 12.0f);
@@ -683,7 +648,9 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
 
     ImGui::End();
 
-    // ── Debug windows ─────────────────────────────────────────────────────────
+    // ── Floating windows ──────────────────────────────────────────────────────
+    if (state.panes.log_pane_visible)
+        render_log_window(&state.panes.log_pane_visible);
     if (state.debug.show_imgui_demo)  ImGui::ShowDemoWindow(&state.debug.show_imgui_demo);
     if (state.debug.show_implot_demo) ImPlot::ShowDemoWindow(&state.debug.show_implot_demo);
     if (state.debug.show_metrics)     ImGui::ShowMetricsWindow(&state.debug.show_metrics);

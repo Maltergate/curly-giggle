@@ -98,37 +98,6 @@ void render_simulation_list(AppState& state)
         ImGui::TextDisabled("%s  •  %zu datasets",
                             sim.sim_id().c_str(), sim.signals().size());
 
-        // ── Time axis selector ────────────────────────────────────────────────
-        ImGui::TextUnformatted("Time axis:");
-        ImGui::SameLine();
-        const auto& current = sim.time_axis();
-        const char* preview = current.empty() ? "[sample index]" : current.c_str();
-
-        ImGui::SetNextItemWidth(-1.0f);
-        if (ImGui::BeginCombo("##ta", preview)) {
-            // Option: use sample index
-            if (ImGui::Selectable("[sample index]", current.empty())) {
-                sim.set_time_axis("");
-                // Invalidate buffers so they reload with the new time axis
-                for (auto& ps : state.plotted_signals)
-                    if (ps.sim_id == sim.sim_id())
-                        ps.buffer.reset();
-                sim.evict_cache();
-            }
-            // Heuristic suggestions
-            for (const auto& hint : sim.suggested_time_axes()) {
-                const bool sel = (hint == current);
-                if (ImGui::Selectable(hint.c_str(), sel)) {
-                    sim.set_time_axis(hint);
-                    for (auto& ps : state.plotted_signals)
-                        if (ps.sim_id == sim.sim_id())
-                            ps.buffer.reset();
-                    sim.evict_cache();
-                }
-            }
-            ImGui::EndCombo();
-        }
-
         // ── Unload button ─────────────────────────────────────────────────────
         if (ImGui::Button("Unload")) unload = true;
         ImGui::Unindent(12.0f);
