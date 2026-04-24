@@ -8,21 +8,38 @@
 
 #include <nlohmann/json.hpp>
 
+#include <atomic>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <unistd.h>
 
 namespace fs = std::filesystem;
 using namespace fastscope;
 
-// Shared temp path used across tests (cleaned up by each test that writes it)
-static const fs::path k_tmp = fs::temp_directory_path() / "fastscope_test_session.json";
+/// RAII helper: owns a unique temp file path and removes it on destruction.
+/// Using PID + atomic counter makes the path unique even under parallel CTest.
+struct TmpFile {
+    fs::path path;
 
-static void remove_tmp()
-{
-    std::error_code ec;
-    fs::remove(k_tmp, ec);
-}
+    TmpFile()
+    {
+        static std::atomic<int> counter{0};
+        path = fs::temp_directory_path() /
+               ("fastscope_test_" + std::to_string(getpid()) +
+                "_" + std::to_string(counter++) + ".json");
+    }
+
+    ~TmpFile()
+    {
+        std::error_code ec;
+        fs::remove(path, ec);
+    }
+
+    // Non-copyable
+    TmpFile(const TmpFile&)            = delete;
+    TmpFile& operator=(const TmpFile&) = delete;
+};
 
 // ── 1. default_session_path() is under HOME ───────────────────────────────────
 
@@ -55,136 +72,129 @@ TEST_CASE("default_session_path returns path under HOME with fastscope component
 
 TEST_CASE("save_session with empty AppState creates a valid JSON file", "[session]")
 {
-    remove_tmp();
+    TmpFile tmp;
     AppState state;
-    REQUIRE(save_session(state, k_tmp));
-    REQUIRE(fs::exists(k_tmp));
-    remove_tmp();
+    REQUIRE(save_session(state, tmp.path));
+    REQUIRE(fs::exists(tmp.path));
 }
 
 // ── 3. Saved JSON contains "version": 1 ──────────────────────────────────────
 
 TEST_CASE("saved JSON contains version 1", "[session]")
 {
-    remove_tmp();
+    TmpFile tmp;
     AppState state;
-    REQUIRE(save_session(state, k_tmp));
+    REQUIRE(save_session(state, tmp.path));
 
-    std::ifstream ifs(k_tmp);
+    std::ifstream ifs(tmp.path);
     REQUIRE(ifs.is_open());
     auto j = nlohmann::json::parse(ifs);
     REQUIRE(j.value("version", 0) == 1);
-    remove_tmp();
 }
 
 // ── 4. Saved JSON has required top-level keys ─────────────────────────────────
 
 TEST_CASE("saved JSON has simulations, plotted_signals, and panes keys", "[session]")
 {
-    remove_tmp();
+    TmpFile tmp;
     AppState state;
-    REQUIRE(save_session(state, k_tmp));
+    REQUIRE(save_session(state, tmp.path));
 
-    std::ifstream ifs(k_tmp);
+    std::ifstream ifs(tmp.path);
     auto j = nlohmann::json::parse(ifs);
 
     REQUIRE(j.contains("simulations"));
     REQUIRE(j.contains("plotted_signals"));
     REQUIRE(j.contains("panes"));
-    remove_tmp();
 }
 
 // ── 5. load_session with non-existent file returns false ─────────────────────
 
 TEST_CASE("load_session with non-existent file returns false", "[session]")
 {
-    remove_tmp();                 // make sure it really is absent
+    TmpFile tmp;
+    // tmp.path doesn't exist yet — no file was written
     AppState state;
-    REQUIRE_FALSE(load_session(state, k_tmp));
+    REQUIRE_FALSE(load_session(state, tmp.path));
 }
 
 // ── 6. load_session with invalid JSON returns false and does not throw ────────
 
 TEST_CASE("load_session with invalid JSON returns false without throwing", "[session]")
 {
-    remove_tmp();
+    TmpFile tmp;
     {
-        std::ofstream ofs(k_tmp);
+        std::ofstream ofs(tmp.path);
         ofs << "{ this is NOT valid json {{{{";
     }
 
     AppState state;
-    REQUIRE_NOTHROW([&]{ REQUIRE_FALSE(load_session(state, k_tmp)); }());
-    remove_tmp();
+    REQUIRE_NOTHROW([&]{ REQUIRE_FALSE(load_session(state, tmp.path)); }());
 }
 
 // ── 7. Round-trip: panes.file_pane_width is preserved ────────────────────────
 
 TEST_CASE("save then load restores panes.file_pane_width", "[session]")
 {
-    remove_tmp();
+    TmpFile tmp;
     {
         AppState src;
         src.panes.file_pane_width = 420.0f;
-        REQUIRE(save_session(src, k_tmp));
+        REQUIRE(save_session(src, tmp.path));
     }
 
     AppState dst;
-    REQUIRE(load_session(dst, k_tmp));
+    REQUIRE(load_session(dst, tmp.path));
     REQUIRE_THAT(dst.panes.file_pane_width,
                  Catch::Matchers::WithinAbs(420.0f, 1e-4f));
-    remove_tmp();
 }
 
 // ── 8. Round-trip: plotted_signals count is 0 when nothing was plotted ────────
 
 TEST_CASE("save then load with no plotted signals gives empty plotted_signals", "[session]")
 {
-    remove_tmp();
+    TmpFile tmp;
     {
         AppState src;
-        REQUIRE(save_session(src, k_tmp));
+        REQUIRE(save_session(src, tmp.path));
     }
 
     AppState dst;
-    REQUIRE(load_session(dst, k_tmp));
+    REQUIRE(load_session(dst, tmp.path));
     REQUIRE(dst.plotted_signals.empty());
-    remove_tmp();
 }
 
 // ── 9. Round-trip: pane visibility flags are preserved ────────────────────────
 
 TEST_CASE("save then load restores pane visibility flags", "[session]")
 {
-    remove_tmp();
+    TmpFile tmp;
     {
         AppState src;
         src.panes.file_pane_visible   = false;
         src.panes.signal_pane_visible = false;
-        REQUIRE(save_session(src, k_tmp));
+        REQUIRE(save_session(src, tmp.path));
     }
 
     AppState dst;
-    REQUIRE(load_session(dst, k_tmp));
+    REQUIRE(load_session(dst, tmp.path));
     REQUIRE_FALSE(dst.panes.file_pane_visible);
     REQUIRE_FALSE(dst.panes.signal_pane_visible);
-    remove_tmp();
 }
 
 // ── 10. Round-trip: signal_pane_width is preserved ───────────────────────────
 
 TEST_CASE("save then load restores panes.signal_pane_width", "[session]")
 {
-    remove_tmp();
+    TmpFile tmp;
     {
         AppState src;
         src.panes.signal_pane_width = 500.0f;
-        REQUIRE(save_session(src, k_tmp));
+        REQUIRE(save_session(src, tmp.path));
     }
 
     AppState dst;
-    REQUIRE(load_session(dst, k_tmp));
+    REQUIRE(load_session(dst, tmp.path));
     REQUIRE_THAT(dst.panes.signal_pane_width,
                  Catch::Matchers::WithinAbs(500.0f, 1e-4f));
-    remove_tmp();
 }
