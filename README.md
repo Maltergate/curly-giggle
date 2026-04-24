@@ -239,6 +239,21 @@ for the full module diagram, key class descriptions, data-flow walkthrough, and 
 
 ---
 
+## Performance & Memory
+
+**Frame rate pacing:** The application limits in-flight GPU frames to 2 via a dispatch semaphore and `CAMetalLayer.maximumDrawableCount = 2`. This prevents CPU from outrunning GPU and ensures Metal objects (command buffers, vertex buffers) are released promptly.
+
+**Per-frame optimization:** All hot-path string allocations (`cached_label`, `cached_plot_key`) are pre-computed and cached. The axis synchronization loop uses cached keys to avoid repeated `sim_id + ":" + h5_path` concatenations.
+
+**Expected memory footprint:**
+- Idle (no data loaded): ~15 MB
+- With HDF5 file loaded: +disk cache (lazy-loaded on demand)
+- Per-signal render cache: ~100 KB (float arrays for fast ImPlot rendering)
+
+The status bar at the bottom shows real-time memory metrics: RSS, delta from post-warmup baseline, and growth rate.
+
+---
+
 ## Roadmap
 
 - **Detachable plot windows** — tear off a plot into its own floating window
