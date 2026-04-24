@@ -27,6 +27,17 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imgui)
 
+# imgui_impl_metal.mm must be compiled with ARC (Automatic Reference Counting).
+# Without ARC the file leaks: every frame creates FramebufferDescriptor via alloc
+# and assigns it to a strong property whose setter retains (+2 total), but the
+# original alloc +1 is never balanced by a matching release.  The same MRR bug
+# affects MetalBuffer cache-miss allocations and mutableCopy in the purge path.
+# -fobjc-arc is scoped to this file only; the rest of the project uses MRR.
+set_source_files_properties(
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_metal.mm
+    PROPERTIES COMPILE_OPTIONS "-fobjc-arc"
+)
+
 # ImGui static library — GLFW platform backend + Metal renderer backend (macOS)
 # imgui_impl_metal.mm is Objective-C++; CMake handles .mm via OBJCXX language.
 add_library(imgui_lib STATIC
