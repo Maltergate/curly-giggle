@@ -36,6 +36,7 @@
 #include "fastscope/log_pane.hpp"
 #include "fastscope/session.hpp"
 
+#include <dispatch/dispatch.h>
 #include <mach/mach.h>
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -170,6 +171,20 @@ struct Application::Impl {
     CAMetalLayer*            metalLayer;
     MTLRenderPassDescriptor* rpd;
 
+    // GPU frame pacing: limits CPU to kMaxFramesInFlight ahead of the GPU.
+    // Without this, the CPU can queue many command buffers faster than the GPU
+    // consumes them, causing unbounded memory growth (Metal objects + vertex
+    // buffers accumulate until GPU completion handlers eventually run).
+    static constexpr int kMaxFramesInFlight = 2;
+    dispatch_semaphore_t inFlightSemaphore;
+
+    // Cached Metal layer geometry — only push to CAMetalLayer when values change
+    // (setting drawableSize every frame forces internal CA/Metal work even when
+    // the window hasn't resized).
+    int      fb_width_cached  = 0;
+    int      fb_height_cached = 0;
+    CGFloat  scale_cached     = 0.0;
+
     AppState          state;
     bool              initialized = false;
     Config            config;
@@ -264,8 +279,15 @@ bool Application::init(Config cfg)
     m_impl->metalLayer.device          = m_impl->device;
     m_impl->metalLayer.pixelFormat     = MTLPixelFormatBGRA8Unorm;
     m_impl->metalLayer.framebufferOnly = YES;
+    // Limit drawable pool to 2: nextDrawable() will block until the older of
+    // the two frames has been presented, giving natural ~vsync-rate pacing and
+    // bounding the number of in-flight Metal objects.
+    m_impl->metalLayer.maximumDrawableCount = 2;
     m_impl->metalLayer.contentsScale   = [nswindow backingScaleFactor];
     [contentView setLayer:m_impl->metalLayer];
+
+    // Initialise GPU pacing semaphore.
+    m_impl->inFlightSemaphore = dispatch_semaphore_create(Application::Impl::kMaxFramesInFlight);
 
     // ── Dear ImGui ────────────────────────────────────────────────────────────
     IMGUI_CHECKVERSION();
@@ -320,13 +342,34 @@ void Application::run()
             glfwGetFramebufferSize(m_impl->window, &fbw, &fbh);
             if (fbw == 0 || fbh == 0) continue;
 
-            // Sync Metal layer to framebuffer (handles Retina / resize)
+            // Sync Metal layer to framebuffer only when size/scale actually changes.
+            // Setting drawableSize on every frame forces CAMetalLayer to do
+            // unnecessary internal work even when the window hasn't moved.
             NSWindow* nsw = glfwGetCocoaWindow(m_impl->window);
-            m_impl->metalLayer.drawableSize  = CGSizeMake(fbw, fbh);
-            m_impl->metalLayer.contentsScale = [nsw backingScaleFactor];
+            CGFloat scale = [nsw backingScaleFactor];
+            if (fbw != m_impl->fb_width_cached  ||
+                fbh != m_impl->fb_height_cached  ||
+                scale != m_impl->scale_cached)
+            {
+                m_impl->metalLayer.drawableSize  = CGSizeMake(fbw, fbh);
+                m_impl->metalLayer.contentsScale = scale;
+                m_impl->fb_width_cached  = fbw;
+                m_impl->fb_height_cached = fbh;
+                m_impl->scale_cached     = scale;
+            }
+
+            // Wait until the GPU has finished with one of the in-flight frames
+            // before acquiring a new drawable.  Without this gate the CPU can
+            // queue frames much faster than the GPU consumes them, causing
+            // MTLCommandBuffer objects, ImGui vertex buffers, and Metal driver
+            // state to accumulate until completion handlers eventually drain them.
+            dispatch_semaphore_wait(m_impl->inFlightSemaphore, DISPATCH_TIME_FOREVER);
 
             id<CAMetalDrawable> drawable = [m_impl->metalLayer nextDrawable];
-            if (!drawable) continue;
+            if (!drawable) {
+                dispatch_semaphore_signal(m_impl->inFlightSemaphore);
+                continue;
+            }
 
             m_impl->rpd.colorAttachments[0].texture = drawable.texture;
 
@@ -352,6 +395,13 @@ void Application::run()
                 ImGui::UpdatePlatformWindows();
                 ImGui::RenderPlatformWindowsDefault();
             }
+
+            // Signal the semaphore when the GPU finishes this frame so the CPU
+            // can begin preparing the next one.
+            dispatch_semaphore_t sem = m_impl->inFlightSemaphore;
+            [cmdBuf addCompletedHandler:^(id<MTLCommandBuffer>) {
+                dispatch_semaphore_signal(sem);
+            }];
 
             [cmdBuf presentDrawable:drawable];
             [cmdBuf commit];
