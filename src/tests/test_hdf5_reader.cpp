@@ -274,9 +274,9 @@ TEST_CASE("HDF5Reader: load vector signal") {
     REQUIRE_THAT(buf->at(5, 2), WithinAbs(15.0, 1e-9));
 }
 
-TEST_CASE("HDF5Reader: no time_path gives sample-index axis") {
+TEST_CASE("HDF5Reader: enumerate_signals auto-discovers time_path") {
     using Catch::Matchers::WithinAbs;
-    std::string path = make_test_h5("index_axis");
+    std::string path = make_test_h5("auto_time");
     fastscope::HDF5Reader r;
     REQUIRE(r.open(path));
 
@@ -288,13 +288,29 @@ TEST_CASE("HDF5Reader: no time_path gives sample-index axis") {
         if (m.name == "altitude") { alt_meta = &m; break; }
     REQUIRE(alt_meta != nullptr);
 
-    // time_path intentionally left empty
+    // enumerate_signals() should have resolved time_path to "/time"
+    CHECK(alt_meta->time_path == "/time");
+
+    // load_signal uses the auto-discovered time axis (0.0, 0.1, …, 0.9)
     auto buf_res = r.load_signal(*alt_meta);
     REQUIRE(buf_res);
     auto buf = *buf_res;
     REQUIRE_THAT(buf->time()[0], WithinAbs(0.0, 1e-9));
-    REQUIRE_THAT(buf->time()[5], WithinAbs(5.0, 1e-9));
-    REQUIRE_THAT(buf->time()[9], WithinAbs(9.0, 1e-9));
+    REQUIRE_THAT(buf->time()[5], WithinAbs(0.5, 1e-9));
+    REQUIRE_THAT(buf->time()[9], WithinAbs(0.9, 1e-9));
+}
+
+TEST_CASE("HDF5Reader: empty time_path returns error") {
+    fastscope::HDF5Reader r;
+    std::string path = make_test_h5("no_time_err");
+    REQUIRE(r.open(path));
+
+    fastscope::SignalMetadata meta;
+    meta.h5_path  = "/altitude";
+    meta.time_path = "";   // explicitly empty — no auto-discovery
+    auto res = r.load_signal(meta);
+    REQUIRE(!res);
+    CHECK(res.error().code == fastscope::ErrorCode::NotFound);
 }
 
 TEST_CASE("HDF5Reader: load_signal without open returns error") {
