@@ -38,9 +38,9 @@ threading model, error handling strategy, and extension points.
 ║  ┌───────────────────┐   ┌──────────────────────────────────────────┐   ║
 ║  │  UI Widgets       │   │  PlotEngine                              │   ║
 ║  │  SimulationListUI │   │  PlotRegistry                            │   ║
-║  │  SignalTreeWidget │   │   TimeSeriesPlot                         │   ║
-║  │  CollapsiblePane  │   │   Trajectory2DPlot                       │   ║
-║  └───────────────────┘   │   GroundTrackPlot                        │   ║
+║  │  SignalTreeWidget │   │   TimeSeriesPlot  (active)               │   ║
+║  │  CollapsiblePane  │   │   Trajectory2DPlot  (pending polish)     │   ║
+║  └───────────────────┘   │   GroundTrackPlot   (pending polish)     │   ║
 ║                           └──────────────────────────────────────────┘   ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 ```

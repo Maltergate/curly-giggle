@@ -4,6 +4,7 @@
 /// @defgroup app_layer Application Layer
 /// @brief Top-level application state and lifecycle.
 
+#include "fastscope/annotation_tool.hpp"  // Annotation struct
 #include "fastscope/axis_manager.hpp"
 #include "fastscope/color_manager.hpp"
 #include "fastscope/plotted_signal.hpp"
@@ -52,6 +53,10 @@ struct AppState {
     // ── Plot layer ─────────────────────────────────────────────────────────────
     std::vector<PlottedSignal> plotted_signals;
     AxisManager axis_manager;
+
+    // ── Annotations (owned here so they can be serialised independently of which
+    //    tool is currently active) ──────────────────────────────────────────────
+    std::vector<Annotation> annotations;
 
     // ── Tool system ───────────────────────────────────────────────────────────
     ToolManager tool_manager;

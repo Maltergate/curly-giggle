@@ -1,4 +1,5 @@
 #include "fastscope/session.hpp"
+#include "fastscope/annotation_tool.hpp"
 #include "fastscope/app_state.hpp"
 #include "fastscope/simulation_file.hpp"
 #include "fastscope/axis_manager.hpp"
@@ -86,8 +87,18 @@ bool save_session(const AppState& state, const std::filesystem::path& path)
 
         j["active_plot_type"] = "timeseries";
 
-        // TODO: serialize annotations (needs AnnotationTool access when not active)
-        j["annotations"] = json::array();
+        // Annotations
+        json annots = json::array();
+        for (const auto& a : state.annotations) {
+            annots.push_back({
+                {"time",           a.time},
+                {"value",          a.value},
+                {"text",           a.text},
+                {"label_offset_x", a.label_offset_x},
+                {"label_offset_y", a.label_offset_y}
+            });
+        }
+        j["annotations"] = std::move(annots);
 
         // Panes
         j["panes"] = {
@@ -214,6 +225,18 @@ bool load_session(AppState& state, const std::filesystem::path& path)
         state.panes.signal_pane_visible = panes.value("signal_pane_visible", true);
         state.panes.file_pane_width     = panes.value("file_pane_width",     280.0f);
         state.panes.signal_pane_width   = panes.value("signal_pane_width",   300.0f);
+    }
+
+    // Annotations
+    for (const auto& entry : j.value("annotations", json::array())) {
+        Annotation a;
+        a.time           = entry.value("time",           0.0);
+        a.value          = entry.value("value",          0.0);
+        a.text           = entry.value("text",           "");
+        a.label_offset_x = entry.value("label_offset_x", 60.0f);
+        a.label_offset_y = entry.value("label_offset_y", -80.0f);
+        if (!a.text.empty())
+            state.annotations.push_back(std::move(a));
     }
 
     FASTSCOPE_LOG_INFO("load_session: restored from '{}'", path.string());

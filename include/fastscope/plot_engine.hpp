@@ -40,7 +40,7 @@ public:
     /// @brief Returns all registered plot type keys in insertion order.
     [[nodiscard]] const std::vector<std::string>& available_types() const noexcept;
 
-    /// @brief Trigger auto-fit on both X and all Y axes next frame (delegated to TimeSeriesPlot).
+    /// @brief Trigger auto-fit on both X and all Y axes next frame.
     void fit_to_data();
     /// @brief Trigger auto-fit on X axis only next frame.
     void fit_x_only();

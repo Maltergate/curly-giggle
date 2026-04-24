@@ -22,6 +22,8 @@ struct Annotation {
 /// @brief IVisualizationTool that places text annotations on the plot.
 /// @details Left-click in the plot area to begin placing an annotation.
 ///          The user types a label; pressing Enter confirms placement.
+///          Annotations are stored in AppState::annotations (not in the tool
+///          instance) so they survive tool switching and can be serialised.
 class AnnotationTool : public IVisualizationTool {
 public:
     [[nodiscard]] std::string_view name() const noexcept override { return "Annotation"; }
@@ -33,11 +35,7 @@ public:
     void on_activate()   override {}
     void on_deactivate() override { m_placing = false; }
 
-    [[nodiscard]] const std::vector<Annotation>& annotations() const noexcept;
-    void clear_annotations();
-
 private:
-    std::vector<Annotation> m_annotations;
     bool   m_placing     = false;
     double m_place_time  = 0.0;
     double m_place_value = 0.0;

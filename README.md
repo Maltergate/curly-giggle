@@ -24,7 +24,7 @@ files containing time-series signals.
 - **CSV export** — dump all plotted signals to a time-aligned CSV
 - **PNG export** — screenshot the current plot window
 - **Session save/restore** — JSON file preserves open files, plotted signals, pane layout
-- **Status bar** — live FPS, open-file count, plotted-signal count
+- **Status bar** — live FPS, open-file count, plotted-signal count, CPU usage, and memory RSS with post-warmup baseline delta and growth rate (colour-coded: green = stable, yellow = slow, red = fast)
 - **Dark theme** — `ImGui::StyleColorsDark`
 - **Drag-and-drop** — drop `.h5` / `.hdf5` files directly onto the window
 

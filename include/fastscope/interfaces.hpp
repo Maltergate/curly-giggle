@@ -14,13 +14,8 @@
 namespace fastscope {
 
 // ── Forward declarations ───────────────────────────────────────────────────────
-class SignalBuffer;   // Phase 2 — defined in signal_buffer.hpp
+class SignalBuffer;
 struct AppState;
-
-// ── SignalBuffer stub (placeholder until Phase 2) ──────────────────────────────
-//
-// Real definition lives in signal_buffer.hpp once Phase 2 is implemented.
-// Interfaces need only the type name; callers use shared_ptr<SignalBuffer>.
 
 /// @brief Abstract interface for a plot type (Time Series, Trajectory 2D, Ground Track, …).
 /// @details Implementations are registered with PlotRegistry and activated via PlotEngine.
@@ -46,6 +41,12 @@ public:
 
     /// Called when this plot type is deactivated (another type selected).
     virtual void on_deactivate() {}
+
+    /// Request an auto-fit on the next rendered frame.
+    /// @param x  Fit the X (time) axis.
+    /// @param y  Fit all Y axes.
+    /// Default implementation is a no-op (plot types that don't support fit ignore it).
+    virtual void request_fit(bool /*x*/, bool /*y*/) {}
 };
 
 /// @brief Abstract interface for a signal transformation operation.

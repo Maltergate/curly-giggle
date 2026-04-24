@@ -153,8 +153,14 @@ static SystemStats query_system_stats() noexcept
 }
 
 // ── forward declarations ───────────────────────────────────────────────────────
-static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& io);
+static void render_menu_bar(AppState& state, PlotEngine& engine);
+static void render_plotted_signal_list(AppState& state, OperationRegistry& op_reg);
+static void render_plot_toolbar(AppState& state, PlotEngine& engine);
+static void render_status_bar(const AppState& state, const ImGuiIO& io, float bar_h);
+static void render_ui_frame(AppState& state, PlotEngine& engine, OperationRegistry& op_reg,
+                            const ImGuiIO& io);
 static void draw_vertical_splitter(const char* id, float* width, float avail_w);
+
 // ── PIMPL — holds all ObjC / Metal / GLFW state ───────────────────────────────
 
 struct Application::Impl {
@@ -164,10 +170,11 @@ struct Application::Impl {
     CAMetalLayer*            metalLayer;
     MTLRenderPassDescriptor* rpd;
 
-    AppState state;
-    bool     initialized = false;
-    Config   config;
-    PlotEngine engine;
+    AppState          state;
+    bool              initialized = false;
+    Config            config;
+    PlotEngine        engine;
+    OperationRegistry op_reg = fastscope::create_operation_registry();
 };
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────────
@@ -228,20 +235,13 @@ bool Application::init(Config cfg)
         for (int i = 0; i < count; ++i) {
             std::filesystem::path p(paths[i]);
             std::string ext = p.extension().string();
-            // case-insensitive extension check
             for (auto& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (ext != ".h5" && ext != ".hdf5") {
                 FASTSCOPE_LOG_WARN("Dropped file ignored (not .h5/.hdf5): {}", paths[i]);
                 continue;
             }
-            const std::string id = "drop" + std::to_string(drop_counter++);
-            auto sim = std::make_unique<SimulationFile>(id);
-            if (auto res = sim->open(p); res) {
-                FASTSCOPE_LOG_INFO("Dropped file opened: {}", paths[i]);
-                impl->state.simulations.push_back(std::move(sim));
-            } else {
-                FASTSCOPE_LOG_ERROR("Drop open failed for {}: {}", paths[i], res.error().message);
-            }
+            open_simulation_file(impl->state, p,
+                                 "drop" + std::to_string(drop_counter++));
         }
     });
 
@@ -340,7 +340,7 @@ void Application::run()
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
-            render_ui_frame(m_impl->state, m_impl->engine, io);
+            render_ui_frame(m_impl->state, m_impl->engine, m_impl->op_reg, io);
 
             ImGui::Render();
             ImGui_ImplMetal_RenderDrawData(ImGui::GetDrawData(), cmdBuf, enc);
@@ -385,13 +385,355 @@ static void draw_vertical_splitter(const char* id, float* width, float avail_w)
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 }
 
+// ── Menu bar ───────────────────────────────────────────────────────────────────
+
+static void render_menu_bar(AppState& state, PlotEngine& engine)
+{
+    if (!ImGui::BeginMenuBar()) return;
+
+    if (ImGui::BeginMenu("File")) {
+        if (ImGui::MenuItem("Open…", "Cmd+O")) {
+            auto result = show_open_dialog("Open Simulation File", true, {"h5", "hdf5"});
+            if (result.confirmed) {
+                static int menu_sim_counter = 0;
+                for (const auto& p : result.paths)
+                    open_simulation_file(state, p, "sim" + std::to_string(menu_sim_counter++));
+            }
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Export CSV…", nullptr,
+                            false, !state.plotted_signals.empty())) {
+            auto res = show_save_dialog("Export CSV", {"csv"});
+            if (res.confirmed && !res.path.empty()) {
+                auto r = export_csv(state, res.path);
+                if (r)
+                    FASTSCOPE_LOG_INFO("CSV exported: {} rows to {}", *r, res.path.string());
+                else
+                    FASTSCOPE_LOG_WARN("CSV export failed: {}", r.error().message);
+            }
+        }
+        if (ImGui::MenuItem("Export PNG…")) {
+            auto res = show_save_dialog("Export PNG", {"png"});
+            if (res.confirmed && !res.path.empty()) {
+                auto r = export_png("FastScope", res.path);
+                if (!r)
+                    FASTSCOPE_LOG_WARN("PNG export failed: {}", r.error().message);
+            }
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Save Session", "Cmd+S"))
+            save_session(state);
+        if (ImGui::MenuItem("Load Session\xe2\x80\xa6")) {
+            auto result = show_open_dialog("Load Session", false, {"json"});
+            if (result.confirmed && !result.paths.empty())
+                load_session(state, result.paths[0]);
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Quit", "Cmd+Q"))
+            state.quit_requested = true;
+        ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("View")) {
+        ImGui::MenuItem("Files pane",   nullptr, &state.panes.file_pane_visible);
+        ImGui::MenuItem("Signals pane", nullptr, &state.panes.signal_pane_visible);
+        ImGui::MenuItem("Log window",   nullptr, &state.panes.log_pane_visible);
+        ImGui::Separator();
+        ImGui::MenuItem("ImGui Demo",   nullptr, &state.debug.show_imgui_demo);
+        ImGui::MenuItem("ImPlot Demo",  nullptr, &state.debug.show_implot_demo);
+        ImGui::MenuItem("Metrics",      nullptr, &state.debug.show_metrics);
+        ImGui::EndMenu();
+    }
+
+    (void)engine;  // engine exposed for future "Plot" menu
+    ImGui::EndMenuBar();
+}
+
+// ── Plotted-signal list + derived-signal dialog ────────────────────────────────
+
+static void render_plotted_signal_list(AppState& state, OperationRegistry& op_reg)
+{
+    if (state.plotted_signals.empty()) return;
+
+    static int  s_editing_idx = -1;
+    static char s_edit_buf[512] = {};
+
+    for (int idx = 0; idx < static_cast<int>(state.plotted_signals.size()); ) {
+        auto& ps = state.plotted_signals[idx];
+        ImGui::PushID(ps.plot_key().c_str());
+
+        // Color swatch
+        float col[4];
+        ColorManager::to_float4(ps.color_rgba, col);
+        if (ImGui::ColorButton("##col", ImVec4(col[0],col[1],col[2],col[3]),
+                               ImGuiColorEditFlags_NoTooltip, ImVec2(14, 14)))
+        {}
+        ImGui::SameLine();
+        ImGui::Checkbox("##vis", &ps.visible);
+        ImGui::SameLine();
+
+        // Inline alias editor
+        if (s_editing_idx == idx) {
+            ImGui::SetKeyboardFocusHere();
+            ImGuiInputTextFlags edit_flags =
+                ImGuiInputTextFlags_EnterReturnsTrue |
+                ImGuiInputTextFlags_AutoSelectAll;
+            bool committed  = ImGui::InputText("##alias_edit", s_edit_buf,
+                                               sizeof(s_edit_buf), edit_flags);
+            bool lost_focus = !ImGui::IsItemActive() && !ImGui::IsItemFocused();
+            if (committed) {
+                ps.alias = s_edit_buf;
+                s_editing_idx = -1;
+            } else if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+                s_editing_idx = -1;
+            } else if (lost_focus) {
+                ps.alias = s_edit_buf;
+                s_editing_idx = -1;
+            }
+        } else {
+            ImGui::TextUnformatted(ps.display_name().c_str());
+            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+                s_editing_idx = idx;
+                const std::string& src = ps.alias.empty() ? ps.meta.h5_path : ps.alias;
+                std::strncpy(s_edit_buf, src.c_str(), sizeof(s_edit_buf) - 1);
+                s_edit_buf[sizeof(s_edit_buf) - 1] = '\0';
+            }
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(%s)", ps.sim_id.c_str());
+        ImGui::SameLine();
+
+        // Y-axis badge
+        {
+            static const ImVec4 axis_colors[3] = {
+                ImVec4(0.70f, 0.70f, 0.70f, 1.00f),
+                ImVec4(0.50f, 0.70f, 1.00f, 1.00f),
+                ImVec4(0.50f, 1.00f, 0.60f, 1.00f),
+            };
+            static const char* axis_labels[3] = {"[L]", "[R]", "[Y3]"};
+            int axis = std::clamp(ps.y_axis, 0, 2);
+            ImGui::PushStyleColor(ImGuiCol_Text, axis_colors[axis]);
+            ImGui::TextUnformatted(axis_labels[axis]);
+            ImGui::PopStyleColor();
+        }
+        ImGui::SameLine();
+
+        if (ImGui::SmallButton("✕##rm")) {
+            state.colors.release(ps.plot_key());
+            state.plotted_signals.erase(state.plotted_signals.begin() + idx);
+            ImGui::PopID();
+            continue;
+        }
+
+        if (ImGui::BeginPopupContextItem("##axis_ctx")) {
+            ImGui::TextDisabled("Assign axis");
+            ImGui::Separator();
+            if (ImGui::MenuItem("Left (Y1)",  nullptr, ps.y_axis == 0)) ps.y_axis = 0;
+            if (ImGui::MenuItem("Right (Y2)", nullptr, ps.y_axis == 1)) ps.y_axis = 1;
+            if (ImGui::MenuItem("Y3",         nullptr, ps.y_axis == 2)) ps.y_axis = 2;
+            ImGui::EndPopup();
+        }
+
+        ImGui::PopID();
+        ++idx;
+    }
+
+    // Derived signal creator
+    if (ImGui::SmallButton("+ Derived"))
+        ImGui::OpenPopup("Create Derived Signal");
+
+    if (ImGui::BeginPopupModal("Create Derived Signal", nullptr,
+                               ImGuiWindowFlags_AlwaysAutoResize)) {
+        static int  s_op_sel = 0;
+        static char s_name_buf[128] = "derived";
+
+        const auto& op_keys = op_reg.keys();
+
+        ImGui::Text("Operation:");
+        for (int i = 0; i < static_cast<int>(op_keys.size()); ++i) {
+            ImGui::SameLine();
+            if (ImGui::RadioButton(op_keys[i].c_str(), &s_op_sel, i)) {}
+        }
+
+        ImGui::Text("Inputs (select 1-N signals from the plot):");
+        static std::vector<uint8_t> s_input_sel;
+        if (s_input_sel.size() != state.plotted_signals.size())
+            s_input_sel.assign(state.plotted_signals.size(), 0);
+
+        for (int i = 0; i < static_cast<int>(state.plotted_signals.size()); ++i) {
+            const auto& ps = state.plotted_signals[i];
+            bool checked = s_input_sel[i] != 0;
+            if (ImGui::Checkbox(ps.display_name().c_str(), &checked))
+                s_input_sel[i] = checked ? 1 : 0;
+        }
+
+        ImGui::InputText("Name", s_name_buf, sizeof(s_name_buf));
+        ImGui::Separator();
+
+        if (ImGui::Button("Create")) {
+            std::vector<std::shared_ptr<fastscope::SignalBuffer>> inputs;
+            for (int i = 0; i < static_cast<int>(state.plotted_signals.size()); ++i) {
+                if (s_input_sel[i] && state.plotted_signals[i].buffer)
+                    inputs.push_back(state.plotted_signals[i].buffer);
+            }
+
+            if (!inputs.empty() && s_op_sel < static_cast<int>(op_keys.size())) {
+                auto op = op_reg.create(op_keys[s_op_sel]);
+                fastscope::DerivedSignal ds;
+                ds.id           = "derived_" + std::to_string(state.plotted_signals.size());
+                ds.display_name = s_name_buf;
+                ds.operation    = std::move(op);
+                ds.inputs       = std::move(inputs);
+
+                auto result = ds.compute();
+                if (result) {
+                    fastscope::PlottedSignal ps;
+                    ps.sim_id       = "derived";
+                    ps.meta.h5_path = ds.display_name;
+                    ps.meta.name    = ds.display_name;
+                    ps.buffer       = *result;
+                    ps.alias        = ds.display_name;
+                    ps.color_rgba   = state.colors.assign(ds.id);
+                    state.plotted_signals.push_back(std::move(ps));
+                } else {
+                    FASTSCOPE_LOG_WARN("Derived signal compute failed: {}",
+                                 result.error().message);
+                }
+            }
+
+            s_input_sel.clear();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+            s_input_sel.clear();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
+    ImGui::Separator();
+}
+
+// ── Plot-type selector + tool toolbar + fit buttons ────────────────────────────
+
+static void render_plot_toolbar(AppState& state, PlotEngine& engine)
+{
+    // Plot type selector
+    ImGui::TextDisabled("Plot:");
+    ImGui::SameLine();
+    for (const auto& type_id : engine.available_types()) {
+        const bool is_active = (type_id == engine.current_type_id());
+        if (is_active)
+            ImGui::PushStyleColor(ImGuiCol_Button,
+                                  ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+        if (ImGui::SmallButton(type_id.c_str()))
+            engine.switch_to(type_id, state);
+        if (is_active)
+            ImGui::PopStyleColor();
+        ImGui::SameLine();
+    }
+    ImGui::Dummy(ImVec2(8.0f, 0.0f));
+    ImGui::SameLine();
+
+    // Tool toolbar — use stack buffer to avoid per-frame heap allocation
+    ImGui::TextDisabled("Tools:");
+    ImGui::SameLine();
+    for (const auto& tool_id : state.tool_manager.available_tools()) {
+        const bool active = state.tool_manager.is_active(tool_id);
+        if (active)
+            ImGui::PushStyleColor(ImGuiCol_Button,
+                                  ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+        char btn_label[64];
+        std::snprintf(btn_label, sizeof(btn_label), "%s##tool", tool_id.c_str());
+        if (ImGui::SmallButton(btn_label))
+            state.tool_manager.activate(tool_id);
+        if (active) ImGui::PopStyleColor();
+        ImGui::SameLine();
+    }
+    ImGui::Dummy(ImVec2(8.0f, 0.0f));
+    ImGui::SameLine();
+
+    // Fit buttons
+    if (ImGui::SmallButton("Fit All"))  engine.fit_to_data();
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Fit X"))    engine.fit_x_only();
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Fit Y"))    engine.fit_y_only();
+    ImGui::SameLine();
+    ImGui::Dummy(ImVec2(0, 0));
+}
+
+// ── Status bar ─────────────────────────────────────────────────────────────────
+
+static void render_status_bar(const AppState& state, const ImGuiIO& io, float bar_h)
+{
+    const SystemStats sys    = query_system_stats();
+    const float       fps    = io.Framerate;
+    const std::size_t n_sims = state.simulations.size();
+    const std::size_t n_sig  = state.plotted_signals.size();
+
+    const float content_max_y = ImGui::GetContentRegionMax().y;
+    ImGui::SetCursorPos(ImVec2(0.0f, content_max_y - bar_h));
+
+    const ImVec2 p0    = ImGui::GetCursorScreenPos();
+    const float  bar_w = ImGui::GetContentRegionMax().x;
+    const ImVec2 p1(p0.x + bar_w, p0.y + bar_h);
+    ImDrawList*  dl    = ImGui::GetWindowDrawList();
+    dl->AddRectFilled(p0, p1, IM_COL32(20, 20, 28, 255));
+    dl->AddLine(p0, ImVec2(p1.x, p0.y), IM_COL32(70, 70, 100, 200), 1.0f);
+
+    const float item_y = p0.y + (bar_h - ImGui::GetTextLineHeight()) * 0.5f;
+    ImGui::SetCursorScreenPos(ImVec2(p0.x + 8.0f, item_y));
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 0.0f));
+
+    ImGui::TextDisabled("%.1f fps", fps);
+    ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
+
+    ImGui::Text("%zu file%s", n_sims, n_sims == 1 ? "" : "s");
+    ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
+
+    ImGui::Text("%zu signal%s plotted", n_sig, n_sig == 1 ? "" : "s");
+    ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
+
+    ImGui::TextDisabled("CPU %02.0f%%", sys.cpu_pct);
+    ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
+
+    if (sys.delta_mb == 0.0f && sys.growth_mbs == 0.0f) {
+        ImGui::TextDisabled("Mem %.0f MB (warming up…)", sys.rss_mb);
+    } else {
+        ImGui::TextDisabled("Mem %.0f MB", sys.rss_mb);
+        ImGui::SameLine(0.0f, 6.0f);
+
+        const float abs_delta = sys.delta_mb >= 0.0f ? sys.delta_mb : -sys.delta_mb;
+        const char  sign      = sys.delta_mb >= 0.0f ? '+' : '-';
+        if (abs_delta < 1.0f)
+            ImGui::TextDisabled("%c%.1f MB", sign, abs_delta);
+        else
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "%c%.0f MB", sign, abs_delta);
+
+        if (sys.growth_mbs != 0.0f) {
+            ImGui::SameLine(0.0f, 8.0f);
+            const float rate = sys.growth_mbs;
+            ImVec4 col;
+            if      (rate <  0.05f) col = ImVec4(0.5f, 0.9f, 0.5f, 1.0f);
+            else if (rate <  0.5f)  col = ImVec4(1.0f, 0.8f, 0.2f, 1.0f);
+            else                    col = ImVec4(1.0f, 0.3f, 0.3f, 1.0f);
+            ImGui::TextColored(col, "%.2f MB/s", rate);
+        }
+    }
+
+    ImGui::PopStyleVar();
+}
+
 // ── Three-pane layout + UI composition ────────────────────────────────────────
 
-static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& io)
+static void render_ui_frame(AppState& state, PlotEngine& engine, OperationRegistry& op_reg,
+                            const ImGuiIO& io)
 {
     ImGuiViewport* vp = ImGui::GetMainViewport();
 
-    // ── Full-screen host window ────────────────────────────────────────────────
+    // Full-screen host window
     ImGui::SetNextWindowPos(vp->WorkPos);
     ImGui::SetNextWindowSize(vp->WorkSize);
     ImGui::SetNextWindowViewport(vp->ID);
@@ -409,77 +751,16 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
     ImGui::Begin("##HostWindow", nullptr, host_flags);
     ImGui::PopStyleVar(3);
 
-    // ── Menu bar ──────────────────────────────────────────────────────────────
-    if (ImGui::BeginMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Open…", "Cmd+O")) {
-                auto result = show_open_dialog("Open Simulation File", true, {"h5", "hdf5"});
-                if (result.confirmed) {
-                    static int menu_sim_counter = 0;
-                    for (const auto& p : result.paths) {
-                        const std::string id = "sim" + std::to_string(menu_sim_counter++);
-                        auto sim = std::make_unique<SimulationFile>(id);
-                        if (auto res = sim->open(p); res)
-                            state.simulations.push_back(std::move(sim));
-                        else
-                            FASTSCOPE_LOG_ERROR("Open failed: {}", res.error().message);
-                    }
-                }
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Export CSV…", nullptr,
-                                false, !state.plotted_signals.empty())) {
-                auto res = show_save_dialog("Export CSV", {"csv"});
-                if (res.confirmed && !res.path.empty()) {
-                    auto r = export_csv(state, res.path);
-                    if (r)
-                        FASTSCOPE_LOG_INFO("CSV exported: {} rows to {}", *r, res.path.string());
-                    else
-                        FASTSCOPE_LOG_WARN("CSV export failed: {}", r.error().message);
-                }
-            }
-            if (ImGui::MenuItem("Export PNG…")) {
-                auto res = show_save_dialog("Export PNG", {"png"});
-                if (res.confirmed && !res.path.empty()) {
-                    auto r = export_png("FastScope", res.path);
-                    if (!r)
-                        FASTSCOPE_LOG_WARN("PNG export failed: {}", r.error().message);
-                }
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Save Session", "Cmd+S"))
-                save_session(state);
-            if (ImGui::MenuItem("Load Session\xe2\x80\xa6")) {
-                auto result = show_open_dialog("Load Session", false, {"json"});
-                if (result.confirmed && !result.paths.empty())
-                    load_session(state, result.paths[0]);
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Quit", "Cmd+Q"))
-                state.quit_requested = true;
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("View")) {
-            ImGui::MenuItem("Files pane",   nullptr, &state.panes.file_pane_visible);
-            ImGui::MenuItem("Signals pane", nullptr, &state.panes.signal_pane_visible);
-            ImGui::MenuItem("Log window",   nullptr, &state.panes.log_pane_visible);
-            ImGui::Separator();
-            ImGui::MenuItem("ImGui Demo",   nullptr, &state.debug.show_imgui_demo);
-            ImGui::MenuItem("ImPlot Demo",  nullptr, &state.debug.show_implot_demo);
-            ImGui::MenuItem("Metrics",      nullptr, &state.debug.show_metrics);
-            ImGui::EndMenu();
-        }
-        ImGui::EndMenuBar();
-    }
+    render_menu_bar(state, engine);
 
-    // ── Three-pane layout ─────────────────────────────────────────────────────
+    // Three-pane layout
     const float avail_w = ImGui::GetContentRegionAvail().x;
     constexpr float status_bar_h = 22.0f;
     const float avail_h = ImGui::GetContentRegionAvail().y - status_bar_h;
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
 
-    // ── Left pane: simulation file manager ────────────────────────────────────
+    // Left pane: simulation file manager
     if (state.panes.file_pane_visible) {
         ImGui::BeginChild("##FilesPane",
                           ImVec2(state.panes.file_pane_width, avail_h),
@@ -494,7 +775,7 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
         ImGui::SameLine(0.0f, 0.0f);
     }
 
-    // ── Middle pane: signal tree ───────────────────────────────────────────────
+    // Middle pane: signal tree
     if (state.panes.signal_pane_visible) {
         ImGui::BeginChild("##SignalsPane",
                           ImVec2(state.panes.signal_pane_width, avail_h),
@@ -509,224 +790,15 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
         ImGui::SameLine(0.0f, 0.0f);
     }
 
-    // ── Right pane: plot area ──────────────────────────────────────────────────
+    // Right pane: plot area
     {
         const float plot_w = ImGui::GetContentRegionAvail().x;
         const float plot_h = avail_h;
         ImGui::BeginChild("##PlotPane", ImVec2(plot_w, plot_h), ImGuiChildFlags_None);
 
-        // Plotted-signal list (simple list at top of plot pane, Phase 6 will expand this)
-        if (!state.plotted_signals.empty()) {
-            static int  s_editing_idx = -1;
-            static char s_edit_buf[512] = {};
+        render_plotted_signal_list(state, op_reg);
+        render_plot_toolbar(state, engine);
 
-            for (int idx = 0; idx < static_cast<int>(state.plotted_signals.size()); ) {
-                auto& ps = state.plotted_signals[idx];
-                ImGui::PushID(ps.plot_key().c_str());
-
-                // Color swatch
-                float col[4];
-                ColorManager::to_float4(ps.color_rgba, col);
-                if (ImGui::ColorButton("##col", ImVec4(col[0],col[1],col[2],col[3]),
-                                       ImGuiColorEditFlags_NoTooltip, ImVec2(14, 14)))
-                {}
-                ImGui::SameLine();
-                // Visibility toggle
-                ImGui::Checkbox("##vis", &ps.visible);
-                ImGui::SameLine();
-
-                // ── Inline alias editor (Task 1) ──────────────────────────────
-                if (s_editing_idx == idx) {
-                    // Request focus on the first frame of editing
-                    ImGui::SetKeyboardFocusHere();
-                    ImGuiInputTextFlags edit_flags =
-                        ImGuiInputTextFlags_EnterReturnsTrue |
-                        ImGuiInputTextFlags_AutoSelectAll;
-                    bool committed = ImGui::InputText("##alias_edit", s_edit_buf,
-                                                      sizeof(s_edit_buf), edit_flags);
-                    bool lost_focus = !ImGui::IsItemActive() && !ImGui::IsItemFocused();
-                    if (committed) {
-                        ps.alias = s_edit_buf;
-                        s_editing_idx = -1;
-                    } else if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-                        s_editing_idx = -1;          // cancel — discard buffer
-                    } else if (lost_focus) {
-                        ps.alias = s_edit_buf;       // commit on focus loss
-                        s_editing_idx = -1;
-                    }
-                } else {
-                    ImGui::TextUnformatted(ps.display_name().c_str());
-                    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-                        s_editing_idx = idx;
-                        // Pre-fill: use existing alias, or h5_path if alias is empty
-                        const std::string& src = ps.alias.empty() ? ps.meta.h5_path : ps.alias;
-                        std::strncpy(s_edit_buf, src.c_str(), sizeof(s_edit_buf) - 1);
-                        s_edit_buf[sizeof(s_edit_buf) - 1] = '\0';
-                    }
-                }
-                ImGui::SameLine();
-                ImGui::TextDisabled("(%s)", ps.sim_id.c_str());
-                ImGui::SameLine();
-
-                // ── Y-axis badge (Task 2) ─────────────────────────────────────
-                {
-                    static const ImVec4 axis_colors[3] = {
-                        ImVec4(0.70f, 0.70f, 0.70f, 1.00f),   // Y1: neutral grey
-                        ImVec4(0.50f, 0.70f, 1.00f, 1.00f),   // Y2: blue tint
-                        ImVec4(0.50f, 1.00f, 0.60f, 1.00f),   // Y3: green tint
-                    };
-                    static const char* axis_labels[3] = {"[L]", "[R]", "[Y3]"};
-                    int axis = std::clamp(ps.y_axis, 0, 2);
-                    ImGui::PushStyleColor(ImGuiCol_Text, axis_colors[axis]);
-                    ImGui::TextUnformatted(axis_labels[axis]);
-                    ImGui::PopStyleColor();
-                }
-                ImGui::SameLine();
-
-                // Remove button
-                if (ImGui::SmallButton("✕##rm")) {
-                    state.colors.release(ps.plot_key());
-                    state.plotted_signals.erase(state.plotted_signals.begin() + idx);
-                    ImGui::PopID();
-                    continue;
-                }
-
-                // ── Right-click context menu for Y-axis (Task 2) ──────────────
-                if (ImGui::BeginPopupContextItem("##axis_ctx")) {
-                    ImGui::TextDisabled("Assign axis");
-                    ImGui::Separator();
-                    if (ImGui::MenuItem("Left (Y1)",  nullptr, ps.y_axis == 0)) ps.y_axis = 0;
-                    if (ImGui::MenuItem("Right (Y2)", nullptr, ps.y_axis == 1)) ps.y_axis = 1;
-                    if (ImGui::MenuItem("Y3",         nullptr, ps.y_axis == 2)) ps.y_axis = 2;
-                    ImGui::EndPopup();
-                }
-
-                ImGui::PopID();
-                ++idx;
-            }
-
-            // ── Derived signal creator (modal dialog) ──────────────────────────
-            if (ImGui::SmallButton("+ Derived"))
-                ImGui::OpenPopup("Create Derived Signal");
-
-            if (ImGui::BeginPopupModal("Create Derived Signal", nullptr,
-                                        ImGuiWindowFlags_AlwaysAutoResize)) {
-                static int  s_op_sel = 0;
-                static char s_name_buf[128] = "derived";
-
-                static auto op_reg = fastscope::create_operation_registry();
-                const auto& op_keys = op_reg.keys();
-
-                ImGui::Text("Operation:");
-                for (int i = 0; i < static_cast<int>(op_keys.size()); ++i) {
-                    ImGui::SameLine();
-                    if (ImGui::RadioButton(op_keys[i].c_str(), &s_op_sel, i)) {}
-                }
-
-                ImGui::Text("Inputs (select 1-N signals from the plot):");
-                static std::vector<uint8_t> s_input_sel;
-                if (s_input_sel.size() != state.plotted_signals.size())
-                    s_input_sel.assign(state.plotted_signals.size(), 0);
-
-                for (int i = 0; i < static_cast<int>(state.plotted_signals.size()); ++i) {
-                    const auto& ps = state.plotted_signals[i];
-                    bool checked = s_input_sel[i] != 0;
-                    if (ImGui::Checkbox(ps.display_name().c_str(), &checked))
-                        s_input_sel[i] = checked ? 1 : 0;
-                }
-
-                ImGui::InputText("Name", s_name_buf, sizeof(s_name_buf));
-                ImGui::Separator();
-
-                if (ImGui::Button("Create")) {
-                    std::vector<std::shared_ptr<fastscope::SignalBuffer>> inputs;
-                    for (int i = 0; i < static_cast<int>(state.plotted_signals.size()); ++i) {
-                        if (s_input_sel[i] && state.plotted_signals[i].buffer)
-                            inputs.push_back(state.plotted_signals[i].buffer);
-                    }
-
-                    if (!inputs.empty() && s_op_sel < static_cast<int>(op_keys.size())) {
-                        auto op = op_reg.create(op_keys[s_op_sel]);
-                        fastscope::DerivedSignal ds;
-                        ds.id = std::string("derived_") +
-                                std::to_string(state.plotted_signals.size());
-                        ds.display_name = s_name_buf;
-                        ds.operation    = std::move(op);
-                        ds.inputs       = std::move(inputs);
-
-                        auto result = ds.compute();
-                        if (result) {
-                            fastscope::PlottedSignal ps;
-                            ps.sim_id       = "derived";
-                            ps.meta.h5_path = ds.display_name;
-                            ps.meta.name    = ds.display_name;
-                            ps.buffer       = *result;
-                            ps.alias        = ds.display_name;
-                            ps.color_rgba   = state.colors.assign(ds.id);
-                            state.plotted_signals.push_back(std::move(ps));
-                        } else {
-                            FASTSCOPE_LOG_WARN("Derived signal compute failed: {}",
-                                         result.error().message);
-                        }
-                    }
-
-                    s_input_sel.clear();
-                    ImGui::CloseCurrentPopup();
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Cancel")) {
-                    s_input_sel.clear();
-                    ImGui::CloseCurrentPopup();
-                }
-                ImGui::EndPopup();
-            }
-
-            ImGui::Separator();
-        }
-
-        // ── Plot type selector ────────────────────────────────────────────────
-        ImGui::TextDisabled("Plot:");
-        ImGui::SameLine();
-        for (const auto& type_id : engine.available_types()) {
-            const bool is_active = (type_id == engine.current_type_id());
-            if (is_active)
-                ImGui::PushStyleColor(ImGuiCol_Button,
-                                      ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-            if (ImGui::SmallButton(type_id.c_str()))
-                engine.switch_to(type_id, state);
-            if (is_active)
-                ImGui::PopStyleColor();
-            ImGui::SameLine();
-        }
-        ImGui::Dummy(ImVec2(8.0f, 0.0f));
-        ImGui::SameLine();
-
-        // ── Tool toolbar ──────────────────────────────────────────────────────
-        ImGui::TextDisabled("Tools:");
-        ImGui::SameLine();
-        for (const auto& tool_id : state.tool_manager.available_tools()) {
-            const bool active = state.tool_manager.is_active(tool_id);
-            if (active) ImGui::PushStyleColor(ImGuiCol_Button,
-                            ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-            std::string btn_label = tool_id + "##tool";
-            if (ImGui::SmallButton(btn_label.c_str()))
-                state.tool_manager.activate(tool_id);
-            if (active) ImGui::PopStyleColor();
-            ImGui::SameLine();
-        }
-        ImGui::Dummy(ImVec2(8.0f, 0.0f));
-        ImGui::SameLine();
-
-        // ── Fit toolbar ───────────────────────────────────────────────────────
-        if (ImGui::SmallButton("Fit All"))  engine.fit_to_data();
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Fit X"))    engine.fit_x_only();
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Fit Y"))    engine.fit_y_only();
-        ImGui::SameLine();
-        ImGui::Dummy(ImVec2(0, 0));  // flush sameline
-
-        // Plot fills remaining height
         const float remaining_h = ImGui::GetContentRegionAvail().y;
         engine.render(state, -1.0f, remaining_h > 20.0f ? remaining_h : -1.0f);
 
@@ -735,82 +807,11 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
 
     ImGui::PopStyleVar();  // ItemSpacing
 
-    // ── Status bar ─────────────────────────────────────────────────────────────
-    // Anchor to the bottom of the content area via explicit SetCursorPos so
-    // the bar is always visible regardless of layout drift.
-    {
-        const SystemStats sys    = query_system_stats();
-        const float       fps    = io.Framerate;
-        const std::size_t n_sims = state.simulations.size();
-        const std::size_t n_sig  = state.plotted_signals.size();
-
-        // Position cursor at the exact bottom of the host window content area.
-        const float content_max_y = ImGui::GetContentRegionMax().y;
-        ImGui::SetCursorPos(ImVec2(0.0f, content_max_y - status_bar_h));
-
-        // Draw coloured background + separator line directly via DrawList.
-        const ImVec2 p0  = ImGui::GetCursorScreenPos();
-        const float  bar_w = ImGui::GetContentRegionMax().x;
-        const ImVec2 p1(p0.x + bar_w, p0.y + status_bar_h);
-        ImDrawList*  dl  = ImGui::GetWindowDrawList();
-        dl->AddRectFilled(p0, p1, IM_COL32(20, 20, 28, 255));
-        dl->AddLine(p0, ImVec2(p1.x, p0.y), IM_COL32(70, 70, 100, 200), 1.0f);
-
-        // Position text items vertically centred inside the bar.
-        const float item_y = p0.y + (status_bar_h - ImGui::GetTextLineHeight()) * 0.5f;
-        ImGui::SetCursorScreenPos(ImVec2(p0.x + 8.0f, item_y));
-
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 0.0f));
-
-        ImGui::TextDisabled("%.1f fps", fps);
-        ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
-
-        ImGui::Text("%zu file%s", n_sims, n_sims == 1 ? "" : "s");
-        ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
-
-        ImGui::Text("%zu signal%s plotted", n_sig, n_sig == 1 ? "" : "s");
-        ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
-
-        ImGui::TextDisabled("CPU %02.0f%%", sys.cpu_pct);
-        ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
-
-        // Memory: absolute + delta from post-warmup baseline + growth rate.
-        // During the first 10 s (warmup) just show absolute value.
-        // After warmup: "Mem X MB  +Y.Y MB  Z.Z MB/s"
-        // The growth rate colour: green ≈ stable, yellow = slow growth, red = fast growth.
-        if (sys.delta_mb == 0.0f && sys.growth_mbs == 0.0f) {
-            // Still in warmup — no baseline yet
-            ImGui::TextDisabled("Mem %.0f MB (warming up…)", sys.rss_mb);
-        } else {
-            ImGui::TextDisabled("Mem %.0f MB", sys.rss_mb);
-            ImGui::SameLine(0.0f, 6.0f);
-
-            // Delta sign and colour
-            const float abs_delta = sys.delta_mb >= 0.0f ? sys.delta_mb : -sys.delta_mb;
-            const char  sign      = sys.delta_mb >= 0.0f ? '+' : '-';
-            if (abs_delta < 1.0f)
-                ImGui::TextDisabled("%c%.1f MB", sign, abs_delta);
-            else
-                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "%c%.0f MB", sign, abs_delta);
-
-            // Growth rate (colour-coded; shown after baseline is stable)
-            if (sys.growth_mbs != 0.0f) {
-                ImGui::SameLine(0.0f, 8.0f);
-                const float rate = sys.growth_mbs;
-                ImVec4 col;
-                if      (rate <  0.05f) col = ImVec4(0.5f, 0.9f, 0.5f, 1.0f);   // green  ≈ stable
-                else if (rate <  0.5f)  col = ImVec4(1.0f, 0.8f, 0.2f, 1.0f);   // yellow = slow
-                else                    col = ImVec4(1.0f, 0.3f, 0.3f, 1.0f);   // red    = fast
-                ImGui::TextColored(col, "%.2f MB/s", rate);
-            }
-        }
-
-        ImGui::PopStyleVar();
-    }
+    render_status_bar(state, io, status_bar_h);
 
     ImGui::End();
 
-    // ── Floating windows ──────────────────────────────────────────────────────
+    // Floating windows
     if (state.panes.log_pane_visible)
         render_log_window(&state.panes.log_pane_visible);
     if (state.debug.show_imgui_demo)  ImGui::ShowDemoWindow(&state.debug.show_imgui_demo);

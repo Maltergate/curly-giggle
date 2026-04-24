@@ -50,7 +50,7 @@ static void draw_arrowhead(ImDrawList* dl, ImVec2 tip, ImVec2 from,
 
 // ── AnnotationTool ────────────────────────────────────────────────────────────
 
-void AnnotationTool::handle_input(AppState& /*state*/)
+void AnnotationTool::handle_input(AppState& state)
 {
     // Popup must be checked BEFORE the hovered-guard so it keeps rendering
     // even when the mouse has moved off the plot into the popup itself.
@@ -64,8 +64,8 @@ void AnnotationTool::handle_input(AppState& /*state*/)
         ImGui::SameLine();
         if (ImGui::Button("Add") || confirmed) {
             if (m_text_buf[0] != '\0') {
-                m_annotations.push_back({m_place_time, m_place_value,
-                                         std::string(m_text_buf)});
+                state.annotations.push_back({m_place_time, m_place_value,
+                                             std::string(m_text_buf)});
             }
             m_placing = false;
             ImGui::CloseCurrentPopup();
@@ -83,13 +83,13 @@ void AnnotationTool::handle_input(AppState& /*state*/)
     // Right-click near an existing anchor → delete it.
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
         const ImVec2 mouse = ImGui::GetMousePos();
-        for (int i = static_cast<int>(m_annotations.size()) - 1; i >= 0; --i) {
-            const ImVec2 px = ImPlot::PlotToPixels(m_annotations[i].time,
-                                                   m_annotations[i].value);
+        for (int i = static_cast<int>(state.annotations.size()) - 1; i >= 0; --i) {
+            const ImVec2 px = ImPlot::PlotToPixels(state.annotations[i].time,
+                                                   state.annotations[i].value);
             const float dx = mouse.x - px.x;
             const float dy = mouse.y - px.y;
             if (dx * dx + dy * dy <= 100.0f) {
-                m_annotations.erase(m_annotations.begin() + i);
+                state.annotations.erase(state.annotations.begin() + i);
                 return;
             }
         }
@@ -106,7 +106,7 @@ void AnnotationTool::handle_input(AppState& /*state*/)
     }
 }
 
-void AnnotationTool::render_overlay(const AppState& /*state*/)
+void AnnotationTool::render_overlay(const AppState& state)
 {
     ImDrawList* dl = ImPlot::GetPlotDrawList();
     if (!dl) return;
@@ -122,7 +122,7 @@ void AnnotationTool::render_overlay(const AppState& /*state*/)
     constexpr ImU32  k_arrow    = IM_COL32(255, 200,  50, 220);
     constexpr ImU32  k_shadow   = IM_COL32(  0,   0,   0,  80);
 
-    for (const auto& a : m_annotations) {
+    for (const auto& a : state.annotations) {
         const ImVec2 anchor(ImPlot::PlotToPixels(a.time, a.value));
         const ImVec2 bc(anchor.x + a.label_offset_x,
                         anchor.y + a.label_offset_y);  // bubble centre in pixels
@@ -153,16 +153,6 @@ void AnnotationTool::render_overlay(const AppState& /*state*/)
         dl->AddCircleFilled(anchor, dot_radius, k_arrow);
         dl->AddCircle      (anchor, dot_radius, k_border, 0, 1.2f);
     }
-}
-
-const std::vector<Annotation>& AnnotationTool::annotations() const noexcept
-{
-    return m_annotations;
-}
-
-void AnnotationTool::clear_annotations()
-{
-    m_annotations.clear();
 }
 
 } // namespace fastscope

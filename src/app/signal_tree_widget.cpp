@@ -58,6 +58,15 @@ void render_signal_tree(AppState& state)
     ImGui::SetNextItemWidth(-1.0f);
     ImGui::InputTextWithHint("##search", "Filter signals…", s_search_buf, sizeof(s_search_buf));
     const std::string filter(s_search_buf);
+
+    // Precompute lowercase filter once (not per-signal).
+    std::string lower_filter;
+    if (!filter.empty()) {
+        lower_filter = filter;
+        std::transform(lower_filter.begin(), lower_filter.end(), lower_filter.begin(),
+                       [](unsigned char c){ return std::tolower(c); });
+    }
+
     ImGui::Separator();
 
     // ── Per-simulation trees ──────────────────────────────────────────────────
@@ -72,19 +81,10 @@ void render_signal_tree(AppState& state)
 
         for (const auto& meta : sim.signals()) {
             // Apply filter
-            if (!filter.empty()) {
-                const std::string lower_name = [&]{
-                    std::string s = meta.h5_path;
-                    std::transform(s.begin(), s.end(), s.begin(),
-                                   [](unsigned char c){ return std::tolower(c); });
-                    return s;
-                }();
-                const std::string lower_filter = [&]{
-                    std::string s = filter;
-                    std::transform(s.begin(), s.end(), s.begin(),
-                                   [](unsigned char c){ return std::tolower(c); });
-                    return s;
-                }();
+            if (!lower_filter.empty()) {
+                std::string lower_name = meta.h5_path;
+                std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(),
+                               [](unsigned char c){ return std::tolower(c); });
                 if (lower_name.find(lower_filter) == std::string::npos) continue;
             }
 

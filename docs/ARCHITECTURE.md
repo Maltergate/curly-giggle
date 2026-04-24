@@ -63,10 +63,12 @@ Contains:
 AppState is not copyable (owns `unique_ptr` simulations).
 
 ### `PlotEngine` (`include/fastscope/plot_engine.hpp`)
-Owns a `PlotRegistry` and the currently active `IPlotType`.  Registered types:
-`timeseries`, `trajectory2d`, `groundtrack`.  Delegates `render()`,
-`on_activate()`, and `on_deactivate()` to the active type.  Exposes
-`fit_to_data()` / `fit_x_only()` as conveniences for the toolbar.
+Owns a `PlotRegistry` and the currently active `IPlotType`.  Currently active
+type: `timeseries`.  Types `trajectory2d` and `groundtrack` are implemented but
+not yet registered (pending polish).  Delegates `render()`, `on_activate()`, and
+`on_deactivate()` to the active type.  Exposes `fit_to_data()` / `fit_x_only()`
+as conveniences for the toolbar; these delegate via the `IPlotType::request_fit()`
+virtual method (no `dynamic_cast` in the engine).
 
 ### `AxisManager` (`include/fastscope/axis_manager.hpp`)
 Tracks which plotted signal (by `plot_key`) is on which Y axis (0–2) and

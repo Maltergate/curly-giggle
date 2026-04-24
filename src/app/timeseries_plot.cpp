@@ -74,16 +74,6 @@ static ImAxis to_imaxis(int y) noexcept
     return ImAxis_Y1;
 }
 
-/// Build the base legend label: "[SimDisplayName] signal_display_name".
-static std::string make_base_label(const AppState& state, const PlottedSignal& ps)
-{
-    for (const auto& sim : state.simulations) {
-        if (sim->sim_id() == ps.sim_id)
-            return "[" + sim->display_name() + "] " + ps.display_name();
-    }
-    return ps.display_name();
-}
-
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 void TimeSeriesPlot::on_activate(AppState& /*state*/)
@@ -97,7 +87,7 @@ void TimeSeriesPlot::on_deactivate() {}
 
 void TimeSeriesPlot::render(AppState& state, float width, float height)
 {
-    // ── Load buffers and build caches for new/stale signals ───────────────────
+    // ── Load buffers, build float caches, and build cached_label for new/stale signals ──
     for (auto& ps : state.plotted_signals) {
         if (!ps.buffer || !ps.buffer->is_loaded()) {
             for (auto& sim_ptr : state.simulations) {
@@ -114,6 +104,19 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
         if (ps.buffer && ps.buffer->is_loaded()) {
             if (ps.cache_source.lock() != ps.buffer)
                 build_component_cache(ps);
+        }
+        // Build cached_label on first use or when alias/sim display name may have changed.
+        // We detect change via a comparison with the current label rather than a dirty flag
+        // to keep PlottedSignal free of extra fields.
+        if (ps.cached_label.empty()) {
+            for (const auto& sim : state.simulations) {
+                if (sim->sim_id() == ps.sim_id) {
+                    ps.cached_label = "[" + sim->display_name() + "] " + ps.display_name();
+                    break;
+                }
+            }
+            if (ps.cached_label.empty())
+                ps.cached_label = ps.display_name();
         }
     }
 
@@ -226,8 +229,8 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
 
         ImPlot::SetAxes(ImAxis_X1, to_imaxis(ps.y_axis));
 
-        const std::string base  = make_base_label(state, ps);
-        const float*      t_vis = t_arr + i0;
+        const std::string& base  = ps.cached_label;
+        const float*       t_vis = t_arr + i0;
 
         if (ps.component_index >= 0) {
             const std::size_t c = static_cast<std::size_t>(ps.component_index);
@@ -290,7 +293,7 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
                 ImGui::TextColored(ImVec4(col[0], col[1], col[2], col[3]), "●");
                 ImGui::SameLine();
 
-                const std::string base = make_base_label(state, ps);
+                const std::string& base = ps.cached_label;
 
                 if (ps.component_index >= 0) {
                     const std::size_t c = static_cast<std::size_t>(ps.component_index);

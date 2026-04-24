@@ -22,6 +22,19 @@ static std::string s_editing_id;
 static char        s_rename_buf[256] = {};
 static bool        s_focus_rename    = false;
 
+void open_simulation_file(AppState& state,
+                          const std::filesystem::path& p,
+                          const std::string& sim_id)
+{
+    auto sim = std::make_unique<SimulationFile>(sim_id);
+    if (auto res = sim->open(p); res) {
+        FASTSCOPE_LOG_INFO("Opened simulation '{}': {}", sim_id, p.string());
+        state.simulations.push_back(std::move(sim));
+    } else {
+        FASTSCOPE_LOG_ERROR("Failed to open '{}': {}", p.string(), res.error().message);
+    }
+}
+
 void render_simulation_list(AppState& state)
 {
     // ── Header row: title + [+] open button ───────────────────────────────────
@@ -31,14 +44,8 @@ void render_simulation_list(AppState& state)
         auto result = show_open_dialog("Open Simulation File", /*multiple=*/true,
                                        {"h5", "hdf5"});
         if (result.confirmed) {
-            for (const auto& p : result.paths) {
-                const std::string id = "sim" + std::to_string(s_sim_counter++);
-                auto sim = std::make_unique<SimulationFile>(id);
-                if (auto res = sim->open(p); res)
-                    state.simulations.push_back(std::move(sim));
-                else
-                    FASTSCOPE_LOG_ERROR("Failed to open '{}': {}", p.string(), res.error().message);
-            }
+            for (const auto& p : result.paths)
+                open_simulation_file(state, p, "sim" + std::to_string(s_sim_counter++));
         }
     }
     if (ImGui::IsItemHovered())

@@ -17,14 +17,14 @@ struct AppState;
 /// @brief Save the current AppState to a session file.
 /// @param state AppState to serialize.
 /// @param path  Output JSON file path. Defaults to default_session_path().
-/// @return false and logs a warning on failure (non-fatal). STUB until Phase 14.
+/// @return false and logs a warning on failure (non-fatal).
 bool save_session(const AppState& state,
                   const std::filesystem::path& path = default_session_path());
 
 /// @brief Load AppState from a session file.
 /// @param state Existing AppState to populate. Fields absent in the file keep their defaults.
 /// @param path  Input JSON file path. Defaults to default_session_path().
-/// @return false if the file doesn't exist or cannot be parsed. STUB until Phase 14.
+/// @return false if the file doesn't exist or cannot be parsed.
 bool load_session(AppState& state,
                   const std::filesystem::path& path = default_session_path());
 

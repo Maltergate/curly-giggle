@@ -26,11 +26,17 @@ public:
     void on_activate(AppState& state) override;
     void on_deactivate() override;
 
-    /// Trigger auto-fit on both X and all Y axes next frame.
-    void fit_to_data()  { m_fit_on_next_frame  = true; }
-    /// Trigger auto-fit on X axis only next frame.
+    /// IPlotType::request_fit — sets the corresponding fit flag for next frame.
+    void request_fit(bool x, bool y) override
+    {
+        if (x && y) { m_fit_on_next_frame   = true; return; }
+        if (x)        m_fit_x_on_next_frame = true;
+        if (y)        m_fit_y_on_next_frame = true;
+    }
+
+    /// Direct fit helpers kept for backwards-compatible internal use.
+    void fit_to_data()  { m_fit_on_next_frame   = true; }
     void fit_x_only()   { m_fit_x_on_next_frame = true; }
-    /// Trigger auto-fit on all Y axes only next frame.
     void fit_y_only()   { m_fit_y_on_next_frame = true; }
 
 private:

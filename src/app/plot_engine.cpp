@@ -1,5 +1,8 @@
 #include "fastscope/plot_engine.hpp"
 #include "fastscope/timeseries_plot.hpp"
+// trajectory_2d_plot.hpp and ground_track_plot.hpp are included here so they
+// are compiled alongside the engine; register them below when the
+// implementations are sufficiently polished.
 #include "fastscope/trajectory_2d_plot.hpp"
 #include "fastscope/ground_track_plot.hpp"
 #include "fastscope/log.hpp"
@@ -9,7 +12,7 @@ namespace fastscope {
 
 PlotEngine::PlotEngine() {
     m_registry.register_type<TimeSeriesPlot>("timeseries");
-    // Trajectory2DPlot and GroundTrackPlot are not yet mature; kept for future use
+    // Trajectory2DPlot and GroundTrackPlot: pending polish before re-enabling
     // m_registry.register_type<Trajectory2DPlot>("trajectory2d");
     // m_registry.register_type<GroundTrackPlot>("groundtrack");
 
@@ -41,16 +44,13 @@ const std::vector<std::string>& PlotEngine::available_types() const noexcept {
 }
 
 void PlotEngine::fit_to_data() {
-    if (auto* ts = dynamic_cast<TimeSeriesPlot*>(m_current.get()))
-        ts->fit_to_data();
+    if (m_current) m_current->request_fit(/*x=*/true, /*y=*/true);
 }
 void PlotEngine::fit_x_only() {
-    if (auto* ts = dynamic_cast<TimeSeriesPlot*>(m_current.get()))
-        ts->fit_x_only();
+    if (m_current) m_current->request_fit(/*x=*/true, /*y=*/false);
 }
 void PlotEngine::fit_y_only() {
-    if (auto* ts = dynamic_cast<TimeSeriesPlot*>(m_current.get()))
-        ts->fit_y_only();
+    if (m_current) m_current->request_fit(/*x=*/false, /*y=*/true);
 }
 
 IPlotType*       PlotEngine::current_type() noexcept       { return m_current.get(); }

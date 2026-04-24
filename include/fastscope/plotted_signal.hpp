@@ -45,10 +45,14 @@ struct PlottedSignal {
     /// at load time. Scalars use component_cache[0]. Sized K×N after build.
     std::vector<std::vector<float>> component_cache;
 
-    /// Points at the buffer that populated the float caches. If buffer changes
-    /// (different ptr) the caches are stale and must be rebuilt.
-    /// (e.g. time-axis switch) this becomes stale and cache must be rebuilt.
+    /// Points at the buffer that populated the float caches. If the buffer pointer
+    /// changes (e.g. time-axis switch) the caches are stale and must be rebuilt.
     std::weak_ptr<SignalBuffer> cache_source;
+
+    /// Cached legend label "[SimName] signal_name". Built once when the signal
+    /// is first rendered and stored here to avoid per-frame linear search +
+    /// heap allocation. Invalidated (cleared) if sim display name or alias changes.
+    std::string cached_label;
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
