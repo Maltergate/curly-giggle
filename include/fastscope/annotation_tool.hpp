@@ -9,11 +9,14 @@
 namespace fastscope {
 
 /// @brief A single text annotation placed at a plot-space coordinate.
+/// The callout bubble is offset from the anchor in pixel space so it
+/// maintains a fixed visual distance regardless of zoom level.
 struct Annotation {
-    double      time;           ///< X position in plot space.
-    double      value;          ///< Y position in plot space.
-    std::string text;           ///< Label text.
-    bool        has_arrow = false; ///< Whether to draw an arrow to the point.
+    double      time;               ///< Anchor X in plot space.
+    double      value;              ///< Anchor Y in plot space.
+    std::string text;               ///< Label text.
+    float       label_offset_x = 60.0f;  ///< Bubble centre pixel offset from anchor (X).
+    float       label_offset_y = -80.0f; ///< Bubble centre pixel offset from anchor (Y).
 };
 
 /// @brief IVisualizationTool that places text annotations on the plot.
