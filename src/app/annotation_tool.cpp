@@ -1,14 +1,14 @@
 // annotation_tool.cpp — AnnotationTool implementation
 
-#include "gnc_viz/annotation_tool.hpp"
-#include "gnc_viz/app_state.hpp"
+#include "fastscope/annotation_tool.hpp"
+#include "fastscope/app_state.hpp"
 
 #include "imgui.h"
 #include "implot.h"
 
 #include <cstring>
 
-namespace gnc_viz {
+namespace fastscope {
 
 void AnnotationTool::handle_input(AppState& /*state*/)
 {
@@ -97,4 +97,4 @@ void AnnotationTool::clear_annotations()
     m_annotations.clear();
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

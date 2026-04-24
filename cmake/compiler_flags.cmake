@@ -1,8 +1,8 @@
-# gnc_viz_set_compile_options(<target>)
+# fastscope_set_compile_options(<target>)
 #
 # Apply strict warnings to our own targets (NOT to fetched dependencies).
 # Call this on every gnc_viz_lib, gnc_viz, and gnc_viz_tests target.
-function(gnc_viz_set_compile_options target)
+function(fastscope_set_compile_options target)
     target_compile_options(${target} PRIVATE
         -Wall
         -Wextra

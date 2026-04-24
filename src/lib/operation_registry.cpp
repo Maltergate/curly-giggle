@@ -1,7 +1,7 @@
-#include "gnc_viz/operation_registry.hpp"
-#include "gnc_viz/signal_ops.hpp"
+#include "fastscope/operation_registry.hpp"
+#include "fastscope/signal_ops.hpp"
 
-namespace gnc_viz {
+namespace fastscope {
 
 OperationRegistry create_operation_registry()
 {
@@ -14,4 +14,4 @@ OperationRegistry create_operation_registry()
     return reg;
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

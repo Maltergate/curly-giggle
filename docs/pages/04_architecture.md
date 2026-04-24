@@ -3,7 +3,7 @@
 
 # Architecture Reference
 
-This page provides an in-depth view of GNC Viz's component structure, data flow,
+This page provides an in-depth view of FastScope's component structure, data flow,
 threading model, error handling strategy, and extension points.
 
 ---
@@ -113,7 +113,7 @@ When last PlottedSignal referencing a buffer is removed:
 
 ## Thread Model
 
-GNC Viz is **strictly single-threaded**.
+FastScope is **strictly single-threaded**.
 
 ```
 Main Thread
@@ -137,14 +137,14 @@ is planned for a future version; the `SignalBuffer` API is designed to support i
 
 ## Error Handling
 
-All fallible functions return `gnc::Result<T>` — an alias for `std::expected<T, gnc::Error>`.
+All fallible functions return `fastscope::Result<T>` — an alias for `std::expected<T, fastscope::Error>`.
 The application **never throws** outside of unit tests.
 
 ```
-gnc::Result<T>
-  = std::expected<T, gnc::Error>
+fastscope::Result<T>
+  = std::expected<T, fastscope::Error>
 
-gnc::Error {
+fastscope::Error {
   ErrorCode  code     // machine-readable category
   string     message  // human-readable explanation
   string     context  // optional: file path, dataset name, etc.
@@ -161,7 +161,7 @@ Error categories:
 | 300–399 | Signal processing (SignalNotFound, DimensionMismatch, …) |
 | 400–499 | Rendering / UI (RenderFailed) |
 
-Errors that are non-fatal (e.g. failed session load) are logged with `GNC_LOG_WARN`
+Errors that are non-fatal (e.g. failed session load) are logged with `FASTSCOPE_LOG_WARN`
 and execution continues with sensible defaults.
 
 ---

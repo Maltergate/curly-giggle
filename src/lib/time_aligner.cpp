@@ -1,11 +1,11 @@
-#include "gnc_viz/time_aligner.hpp"
+#include "fastscope/time_aligner.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <vector>
 
-namespace gnc_viz {
+namespace fastscope {
 
 std::vector<double>
 TimeAligner::make_uniform_grid(double t_start, double t_end, double dt)
@@ -60,7 +60,7 @@ TimeAligner::interpolate(std::span<const double> src_time,
     return out;
 }
 
-gnc::Result<std::vector<std::shared_ptr<SignalBuffer>>>
+fastscope::Result<std::vector<std::shared_ptr<SignalBuffer>>>
 TimeAligner::align(std::span<const std::shared_ptr<SignalBuffer>> inputs)
 {
     if (inputs.empty()) {
@@ -113,8 +113,8 @@ TimeAligner::align(std::span<const std::shared_ptr<SignalBuffer>> inputs)
     }
 
     if (t_start >= t_end) {
-        return gnc::make_error<std::vector<std::shared_ptr<SignalBuffer>>>(
-            gnc::ErrorCode::InvalidArgument,
+        return fastscope::make_error<std::vector<std::shared_ptr<SignalBuffer>>>(
+            fastscope::ErrorCode::InvalidArgument,
             "Time ranges of inputs do not overlap");
     }
 
@@ -130,8 +130,8 @@ TimeAligner::align(std::span<const std::shared_ptr<SignalBuffer>> inputs)
     }
 
     if (best_dt <= 0.0 || best_dt == std::numeric_limits<double>::max()) {
-        return gnc::make_error<std::vector<std::shared_ptr<SignalBuffer>>>(
-            gnc::ErrorCode::InvalidArgument,
+        return fastscope::make_error<std::vector<std::shared_ptr<SignalBuffer>>>(
+            fastscope::ErrorCode::InvalidArgument,
             "Cannot determine a valid time step from inputs");
     }
 
@@ -167,4 +167,4 @@ TimeAligner::align(std::span<const std::shared_ptr<SignalBuffer>> inputs)
     return result;
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

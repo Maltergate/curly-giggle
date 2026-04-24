@@ -1,23 +1,21 @@
-# GNC Viz — Spacecraft Simulation Data Visualizer
+# FastScope — HDF5 Data Visualizer
 
-An interactive **C++23 / Dear ImGui** desktop application for loading and comparing HDF5 output
-files from GNC (Guidance, Navigation & Control) spacecraft simulations.
+An interactive **C++23 / Dear ImGui** desktop application for loading and comparing HDF5 data
+files containing time-series signals.
 
 > **Current status:** v1 — full feature set complete.
 > Load a file → browse the signal tree → click to plot → annotate and export.
 
 <!-- Screenshot placeholder -->
-<!-- ![GNC Viz screenshot](docs/screenshot.png) -->
+<!-- ![FastScope screenshot](docs/screenshot.png) -->
 
 ---
 
 ## Features
 
-- **Multi-file comparison** — load several `.h5` simulation runs side-by-side
+- **Multi-file comparison** — load several `.h5` files side-by-side
 - **Signal browser** — collapsible HDF5 tree with full path display and live search filter
 - **Time-series plot** — multi-Y-axis (left / right / Y3), color-coded lines, crosshair tooltip
-- **Trajectory plot** — 2-D XY / XZ / YZ projection of position vectors
-- **Ground-track plot** — lat/lon overlay
 - **Derived signals** — add, subtract, scale, vector magnitude computed on the fly
 - **Tools** — annotation markers and ruler with on-plot measurement
 - **Alias editor** — double-click any plotted signal to rename its legend label
@@ -26,7 +24,7 @@ files from GNC (Guidance, Navigation & Control) spacecraft simulations.
 - **CSV export** — dump all plotted signals to a time-aligned CSV
 - **PNG export** — screenshot the current plot window
 - **Session save/restore** — JSON file preserves open files, plotted signals, pane layout
-- **Status bar** — live FPS, simulation count, plotted-signal count
+- **Status bar** — live FPS, open-file count, plotted-signal count
 - **Dark theme** — `ImGui::StyleColorsDark`
 - **Drag-and-drop** — drop `.h5` / `.hdf5` files directly onto the window
 
@@ -50,7 +48,7 @@ compiled automatically by CMake on first build.
 
 ### Linux (not yet tested)
 
-The library layer (`gnc_viz_lib`) is platform-agnostic.  The app layer uses
+The library layer (`fastscope_lib`) is platform-agnostic.  The app layer uses
 Metal + NSOpenPanel (macOS only) and would need an OpenGL/Vulkan backend and a
 portable file-dialog replacement.
 
@@ -89,7 +87,7 @@ cmake --build build --parallel
 ctest --test-dir build
 ```
 
-The binary is at `build/bin/gnc_viz`.  Tests are at `build/bin/gnc_viz_tests`.
+The binary is at `build/bin/fastscope`.  Tests are at `build/bin/fastscope_tests`.
 
 ---
 
@@ -97,10 +95,10 @@ The binary is at `build/bin/gnc_viz`.  Tests are at `build/bin/gnc_viz_tests`.
 
 ```bash
 # Launch the visualizer
-./build/bin/gnc_viz
+./build/bin/fastscope
 
 # Run the unit-test suite
-./build/bin/gnc_viz_tests
+./build/bin/fastscope_tests
 
 # Or via ctest (with verbose output)
 ctest --test-dir build -V
@@ -144,7 +142,7 @@ Signals appear as coloured lines in the **Plot pane** (right panel).
 ### Plot types
 
 Select the active plot type from the toolbar at the top of the Plot pane:
-`timeseries` · `trajectory2d` · `groundtrack`
+`timeseries`
 
 ### Tools
 
@@ -166,7 +164,7 @@ Choose an operation (add, subtract, scale, magnitude), select input signals, ent
 
 ### Session save / restore
 
-- **File → Save Session** (or **Cmd+S**) — saves to `~/.gnc_viz/session.json`
+- **File → Save Session** (or **Cmd+S**) — saves to `~/.fastscope/session.json`
 - **File → Load Session…** — loads a JSON session from a file picker
 - The last session is restored automatically on startup
 
@@ -192,8 +190,8 @@ Choose an operation (add, subtract, scale, magnitude), select input signals, ent
 
 ```
 curly-giggle/
-├── include/gnc_viz/          Public headers (data layer + interfaces)
-│   ├── error.hpp             gnc::Result<T> / gnc::VoidResult (std::expected)
+├── include/fastscope/          Public headers (data layer + interfaces)
+│   ├── error.hpp             fastscope::Result<T> / fastscope::VoidResult (std::expected)
 │   ├── interfaces.hpp        IPlotType, ISignalOperation, IVisualizationTool
 │   ├── registry.hpp          Registry<Interface> plugin system
 │   ├── signal_buffer.hpp     In-memory signal storage (time + values)
@@ -205,8 +203,8 @@ curly-giggle/
 │   ├── app_state.hpp         Central UI state struct
 │   └── …
 ├── src/
-│   ├── lib/                  gnc_viz_lib — pure C++, no UI, fully unit-testable
-│   ├── app/                  gnc_viz app — ImGui + Metal + ObjC++
+│   ├── lib/                  fastscope_lib — pure C++, no UI, fully unit-testable
+│   ├── app/                  fastscope app — ImGui + Metal + ObjC++
 │   └── tests/                Catch2 test suite
 ├── docs/
 │   └── ARCHITECTURE.md       Module diagram, key classes, extension guide
@@ -244,7 +242,6 @@ for the full module diagram, key class descriptions, data-flow walkthrough, and 
 ## Roadmap
 
 - **Detachable plot windows** — tear off a plot into its own floating window
-- **Sidereal-corrected ground track** — display ECEF position with Earth rotation
 - **Derived signals UI** — visual signal-graph editor (node + wire)
 - **Computed norms** — one-click ‖v‖ for any vector signal
 - **Linux support** — OpenGL backend + portal file dialog

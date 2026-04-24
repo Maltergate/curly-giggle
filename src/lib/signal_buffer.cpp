@@ -1,7 +1,7 @@
-#include "gnc_viz/signal_buffer.hpp"
+#include "fastscope/signal_buffer.hpp"
 #include <stdexcept>
 
-namespace gnc_viz {
+namespace fastscope {
 
 SignalBuffer::SignalBuffer(SignalMetadata meta,
                            std::vector<double> time,
@@ -61,4 +61,4 @@ SignalBuffer::make_vector(SignalMetadata meta,
     return buf;
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

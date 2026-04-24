@@ -1,14 +1,14 @@
 // timeseries_plot.cpp — TimeSeriesPlot IPlotType implementation (Phase 8/9)
-// Depends on ImPlot; compiled as part of the gnc_viz app target.
+// Depends on ImPlot; compiled as part of the fastscope app target.
 
-#include "gnc_viz/timeseries_plot.hpp"
-#include "gnc_viz/app_state.hpp"
-#include "gnc_viz/simulation_file.hpp"
-#include "gnc_viz/plotted_signal.hpp"
-#include "gnc_viz/axis_manager.hpp"
-#include "gnc_viz/color_manager.hpp"
-#include "gnc_viz/log.hpp"
-#include "gnc_viz/tool_manager.hpp"
+#include "fastscope/timeseries_plot.hpp"
+#include "fastscope/app_state.hpp"
+#include "fastscope/simulation_file.hpp"
+#include "fastscope/plotted_signal.hpp"
+#include "fastscope/axis_manager.hpp"
+#include "fastscope/color_manager.hpp"
+#include "fastscope/log.hpp"
+#include "fastscope/tool_manager.hpp"
 
 #include "implot.h"
 #include "imgui.h"
@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-namespace gnc_viz {
+namespace fastscope {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -106,7 +106,7 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
                 if (res)
                     ps.buffer = *res;
                 else
-                    GNC_LOG_WARN("TimeSeriesPlot: load_signal failed for '{}': {}",
+                    FASTSCOPE_LOG_WARN("TimeSeriesPlot: load_signal failed for '{}': {}",
                                  ps.meta.h5_path, res.error().message);
                 break;
             }
@@ -363,4 +363,4 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
     }
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

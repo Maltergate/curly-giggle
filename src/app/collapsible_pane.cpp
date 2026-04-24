@@ -1,7 +1,7 @@
-#include "gnc_viz/collapsible_pane.hpp"
+#include "fastscope/collapsible_pane.hpp"
 #include "imgui.h"
 
-namespace gnc_viz {
+namespace fastscope {
 
 bool CollapsiblePane::begin(float width, float avail_h)
 {
@@ -82,4 +82,4 @@ void CollapsiblePane::end()
     ImGui::EndChild();
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

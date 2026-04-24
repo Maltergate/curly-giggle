@@ -1,8 +1,8 @@
 // test_time_aligner.cpp — unit tests for TimeAligner
 
-#include "gnc_viz/time_aligner.hpp"
-#include "gnc_viz/signal_buffer.hpp"
-#include "gnc_viz/signal_metadata.hpp"
+#include "fastscope/time_aligner.hpp"
+#include "fastscope/signal_buffer.hpp"
+#include "fastscope/signal_metadata.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
@@ -10,9 +10,9 @@
 #include <memory>
 #include <vector>
 
-using gnc_viz::TimeAligner;
-using gnc_viz::SignalBuffer;
-using gnc_viz::SignalMetadata;
+using fastscope::TimeAligner;
+using fastscope::SignalBuffer;
+using fastscope::SignalMetadata;
 using Catch::Matchers::WithinAbs;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -213,7 +213,7 @@ TEST_CASE("TimeAligner::align non-overlapping ranges returns error", "[time_alig
     std::vector<std::shared_ptr<SignalBuffer>> inputs{buf1, buf2};
     auto res = TimeAligner::align(inputs);
     REQUIRE(!res);
-    REQUIRE(res.error().code == gnc::ErrorCode::InvalidArgument);
+    REQUIRE(res.error().code == fastscope::ErrorCode::InvalidArgument);
 }
 
 TEST_CASE("TimeAligner::align vector signals (3 components)", "[time_aligner]")

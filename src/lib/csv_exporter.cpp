@@ -1,17 +1,17 @@
 // csv_exporter.cpp — Export plotted signals to CSV
 
-#include "gnc_viz/csv_exporter.hpp"
-#include "gnc_viz/app_state.hpp"
-#include "gnc_viz/plotted_signal.hpp"
-#include "gnc_viz/error.hpp"
+#include "fastscope/csv_exporter.hpp"
+#include "fastscope/app_state.hpp"
+#include "fastscope/plotted_signal.hpp"
+#include "fastscope/error.hpp"
 
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
 
-namespace gnc_viz {
+namespace fastscope {
 
-gnc::Result<std::size_t> export_csv(const AppState& state,
+fastscope::Result<std::size_t> export_csv(const AppState& state,
                                      const std::filesystem::path& path)
 {
     // 1. Collect visible signals with loaded buffers.
@@ -22,12 +22,12 @@ gnc::Result<std::size_t> export_csv(const AppState& state,
     }
 
     if (signals.empty())
-        return gnc::make_error<std::size_t>(gnc::ErrorCode::InvalidState,
+        return fastscope::make_error<std::size_t>(fastscope::ErrorCode::InvalidState,
                                             "No visible signals to export");
 
     std::ofstream out(path);
     if (!out)
-        return gnc::make_error<std::size_t>(gnc::ErrorCode::FileOpenFailed,
+        return fastscope::make_error<std::size_t>(fastscope::ErrorCode::FileOpenFailed,
                                             "Cannot open file for writing: " + path.string());
 
     out << std::setprecision(10);
@@ -90,4 +90,4 @@ gnc::Result<std::size_t> export_csv(const AppState& state,
     return row_count;
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

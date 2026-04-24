@@ -1,9 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gnc_viz/registry.hpp"
-#include "gnc_viz/interfaces.hpp"
-#include "gnc_viz/app_state.hpp"
+#include "fastscope/registry.hpp"
+#include "fastscope/interfaces.hpp"
+#include "fastscope/app_state.hpp"
 
-using namespace gnc_viz;
+using namespace fastscope;
 
 // ── Test doubles ──────────────────────────────────────────────────────────────
 
@@ -23,10 +23,10 @@ struct AlphaOp : ISignalOperation {
     std::string_view name()        const noexcept override { return "AlphaOp"; }
     std::string_view id()          const noexcept override { return "alpha_op"; }
     int              input_count() const noexcept override { return 1; }
-    gnc::Result<std::shared_ptr<SignalBuffer>>
+    fastscope::Result<std::shared_ptr<SignalBuffer>>
     execute(std::span<const std::shared_ptr<SignalBuffer>>) override {
-        return gnc::make_error<std::shared_ptr<SignalBuffer>>(
-            gnc::ErrorCode::Unknown, "stub");
+        return fastscope::make_error<std::shared_ptr<SignalBuffer>>(
+            fastscope::ErrorCode::Unknown, "stub");
     }
 };
 

@@ -1,16 +1,17 @@
-#include "gnc_viz/plot_engine.hpp"
-#include "gnc_viz/timeseries_plot.hpp"
-#include "gnc_viz/trajectory_2d_plot.hpp"
-#include "gnc_viz/ground_track_plot.hpp"
-#include "gnc_viz/log.hpp"
-#include "gnc_viz/app_state.hpp"
+#include "fastscope/plot_engine.hpp"
+#include "fastscope/timeseries_plot.hpp"
+#include "fastscope/trajectory_2d_plot.hpp"
+#include "fastscope/ground_track_plot.hpp"
+#include "fastscope/log.hpp"
+#include "fastscope/app_state.hpp"
 
-namespace gnc_viz {
+namespace fastscope {
 
 PlotEngine::PlotEngine() {
     m_registry.register_type<TimeSeriesPlot>("timeseries");
-    m_registry.register_type<Trajectory2DPlot>("trajectory2d");
-    m_registry.register_type<GroundTrackPlot>("groundtrack");
+    // Trajectory2DPlot and GroundTrackPlot are not yet mature; kept for future use
+    // m_registry.register_type<Trajectory2DPlot>("trajectory2d");
+    // m_registry.register_type<GroundTrackPlot>("groundtrack");
 
     // Activate timeseries by default
     m_current_id = "timeseries";
@@ -25,7 +26,7 @@ void PlotEngine::render(AppState& state, float width, float height) {
 void PlotEngine::switch_to(std::string_view type_id, AppState& state) {
     if (type_id == m_current_id) return;
     if (!m_registry.contains(type_id)) {
-        GNC_LOG_WARN("PlotEngine::switch_to: unknown type '{}'", type_id);
+        FASTSCOPE_LOG_WARN("PlotEngine::switch_to: unknown type '{}'", type_id);
         return;
     }
     if (m_current) m_current->on_deactivate();
@@ -55,4 +56,4 @@ void PlotEngine::fit_y_only() {
 IPlotType*       PlotEngine::current_type() noexcept       { return m_current.get(); }
 const IPlotType* PlotEngine::current_type() const noexcept { return m_current.get(); }
 
-} // namespace gnc_viz
+} // namespace fastscope

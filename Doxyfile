@@ -1,8 +1,8 @@
-PROJECT_NAME           = "GNC Viz"
+PROJECT_NAME           = "FastScope"
 PROJECT_NUMBER         = 1.0
-PROJECT_BRIEF          = "Spacecraft GNC simulation data visualizer"
+PROJECT_BRIEF          = "HDF5 data visualizer"
 OUTPUT_DIRECTORY       = docs/generated
-INPUT                  = include/gnc_viz src/lib src/app docs/pages README.md
+INPUT                  = include/fastscope src/lib src/app docs/pages README.md
 FILE_PATTERNS          = *.hpp *.cpp *.mm *.md
 RECURSIVE              = YES
 EXTRACT_ALL            = YES

@@ -6,9 +6,9 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "gnc_viz/tool_manager.hpp"
+#include "fastscope/tool_manager.hpp"
 
-using namespace gnc_viz;
+using namespace fastscope;
 
 TEST_CASE("ToolManager default state has no active tool", "[tool_manager]")
 {

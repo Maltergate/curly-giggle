@@ -1,8 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gnc_viz/error.hpp"
+#include "fastscope/error.hpp"
 #include <string>
 
-using namespace gnc;
+using namespace fastscope;
 
 // ── Error construction ─────────────────────────────────────────────────────────
 

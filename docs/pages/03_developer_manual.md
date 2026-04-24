@@ -1,9 +1,9 @@
 @page developer_manual Developer Manual
-@brief Guide for contributors and developers extending GNC Viz
+@brief Guide for contributors and developers extending FastScope
 
 # Developer Manual
 
-This document is for engineers who want to build GNC Viz from source, understand its
+This document is for engineers who want to build FastScope from source, understand its
 architecture, or add new features (plot types, signal operations, visualization tools).
 
 ---
@@ -20,13 +20,13 @@ architecture, or add new features (plot types, signal operations, visualization 
 8. [SignalBuffer Memory Model](#signal-buffer-memory)
 9. [Testing (Catch2)](#testing)
 10. [Session JSON Schema](#session-schema)
-11. [Error Handling (gnc::Result<T>)](#error-handling)
+11. [Error Handling (fastscope::Result<T>)](#error-handling)
 
 ---
 
 ## 1. Build System {#build-system}
 
-GNC Viz uses **CMake 3.28+** with `FetchContent` for third-party dependencies.
+FastScope uses **CMake 3.28+** with `FetchContent` for third-party dependencies.
 
 ### Dependencies fetched automatically
 
@@ -58,16 +58,16 @@ cmake --build build --target docs
 
 | Target | Description |
 |--------|-------------|
-| `gnc_viz` | Main application binary |
-| `gnc_viz_lib` | Static library (all non-main code) |
-| `gnc_viz_tests` | Catch2 test runner |
+| `fastscope` | Main application binary |
+| `fastscope_lib` | Static library (all non-main code) |
+| `fastscope_tests` | Catch2 test runner |
 | `docs` | Doxygen HTML documentation |
 
 ---
 
 ## 2. Code Style {#code-style}
 
-GNC Viz targets **C++23**.  The following rules are enforced by code review:
+FastScope targets **C++23**.  The following rules are enforced by code review:
 
 ### No raw owning pointers
 
@@ -85,21 +85,21 @@ state.simulations.push_back(std::move(sim));
 SimulationFile* sim = new SimulationFile("sim0");
 ```
 
-### Use gnc::Result<T> for fallible operations
+### Use fastscope::Result<T> for fallible operations
 
-Functions that can fail return `gnc::Result<T>` (alias for `std::expected<T, gnc::Error>`).
+Functions that can fail return `fastscope::Result<T>` (alias for `std::expected<T, fastscope::Error>`).
 They must never throw exceptions (except in tests).
 
 ```cpp
-gnc::Result<std::shared_ptr<SignalBuffer>> load_signal(const SignalMetadata& meta);
+fastscope::Result<std::shared_ptr<SignalBuffer>> load_signal(const SignalMetadata& meta);
 ```
 
-Use `GNC_TRY(expr)` to propagate errors without boilerplate:
+Use `FASTSCOPE_TRY(expr)` to propagate errors without boilerplate:
 
 ```cpp
-gnc::Result<Foo> my_func() {
-    auto x = GNC_TRY(step_one());   // returns early with error if step_one() failed
-    auto y = GNC_TRY(step_two(x));
+fastscope::Result<Foo> my_func() {
+    auto x = FASTSCOPE_TRY(step_one());   // returns early with error if step_one() failed
+    auto y = FASTSCOPE_TRY(step_two(x));
     return Foo{x, y};
 }
 ```
@@ -107,7 +107,7 @@ gnc::Result<Foo> my_func() {
 ### No globals, no singletons
 
 All state lives in `AppState`.  Subsystems receive a `(const) AppState&` parameter.
-The logger is the only exception (accessed via `gnc_viz::log::get()`).
+The logger is the only exception (accessed via `fastscope::log::get()`).
 
 ### Naming conventions
 
@@ -117,7 +117,7 @@ The logger is the only exception (accessed via `gnc_viz::log::get()`).
 | Functions / methods | `snake_case` | `load_signal()`, `fit_to_data()` |
 | Member variables | `m_snake_case` | `m_sim_id`, `m_cache` |
 | Constants | `kPascalCase` or `ALL_CAPS` | `kCollapsedWidth`, `max_axes` |
-| Namespaces | `snake_case` | `gnc_viz`, `gnc` |
+| Namespaces | `snake_case` | `fastscope` |
 
 ---
 
@@ -195,7 +195,7 @@ Screen
 
 ### Thread model
 
-GNC Viz is **single-threaded**.  All UI, I/O, and rendering happen on the main thread.
+FastScope is **single-threaded**.  All UI, I/O, and rendering happen on the main thread.
 HDF5 reads happen during the render loop (on-demand, first frame).  For large files this
 can cause a single-frame hitch; background loading is planned but not yet implemented.
 
@@ -204,17 +204,17 @@ can cause a single-frame hitch; background loading is planned but not yet implem
 ## 4. How to Add a New Plot Type {#new-plot-type}
 
 A plot type renders the signals in `AppState::plotted_signals` in some way.  It inherits
-from `IPlotType` (see `include/gnc_viz/interfaces.hpp`).
+from `IPlotType` (see `include/fastscope/interfaces.hpp`).
 
 ### Step-by-step
 
-**Step 1 — Create the header** `include/gnc_viz/my_plot.hpp`:
+**Step 1 — Create the header** `include/fastscope/my_plot.hpp`:
 
 ```cpp
 #pragma once
-#include "gnc_viz/interfaces.hpp"
+#include "fastscope/interfaces.hpp"
 
-namespace gnc_viz {
+namespace fastscope {
 
 class MyPlot : public IPlotType {
 public:
@@ -229,17 +229,17 @@ private:
     bool m_fit_on_next = true;
 };
 
-} // namespace gnc_viz
+} // namespace fastscope
 ```
 
 **Step 2 — Create the source file** `src/lib/my_plot.cpp`:
 
 ```cpp
-#include "gnc_viz/my_plot.hpp"
-#include "gnc_viz/app_state.hpp"
+#include "fastscope/my_plot.hpp"
+#include "fastscope/app_state.hpp"
 #include <implot.h>
 
-namespace gnc_viz {
+namespace fastscope {
 
 void MyPlot::on_activate(AppState&) { m_fit_on_next = true; }
 void MyPlot::on_deactivate() {}
@@ -251,18 +251,16 @@ void MyPlot::render(AppState& state, float width, float height) {
     }
 }
 
-} // namespace gnc_viz
+} // namespace fastscope
 ```
 
 **Step 3 — Register in PlotEngine constructor** (`src/lib/plot_engine.cpp`):
 
 ```cpp
-#include "gnc_viz/my_plot.hpp"
+#include "fastscope/my_plot.hpp"
 
 PlotEngine::PlotEngine() {
     m_registry.register_type<TimeSeriesPlot>("timeseries");
-    m_registry.register_type<Trajectory2DPlot>("trajectory2d");
-    m_registry.register_type<GroundTrackPlot>("groundtrack");
     m_registry.register_type<MyPlot>("myplot");   // ← add this line
     switch_to("timeseries", /* dummy state */ ...);
 }
@@ -270,7 +268,7 @@ PlotEngine::PlotEngine() {
 
 **Step 4 — Add to CMakeLists.txt**:
 
-Add `src/lib/my_plot.cpp` to the `gnc_viz_lib` target sources.
+Add `src/lib/my_plot.cpp` to the `fastscope_lib` target sources.
 
 ### Interface contract
 
@@ -289,7 +287,7 @@ Add `src/lib/my_plot.cpp` to the `gnc_viz_lib` target sources.
 Signal operations inherit from `ISignalOperation` and transform N input `SignalBuffer`s
 into one output `SignalBuffer`.
 
-**Step 1 — Add the class** to `include/gnc_viz/signal_ops.hpp`:
+**Step 1 — Add the class** to `include/fastscope/signal_ops.hpp`:
 
 ```cpp
 class MyOp final : public ISignalOperation {
@@ -298,7 +296,7 @@ public:
     [[nodiscard]] std::string_view id()          const noexcept override { return "myop"; }
     [[nodiscard]] int              input_count() const noexcept override { return 2; }
 
-    gnc::Result<std::shared_ptr<SignalBuffer>>
+    fastscope::Result<std::shared_ptr<SignalBuffer>>
     execute(std::span<const std::shared_ptr<SignalBuffer>> inputs) override;
 };
 ```
@@ -324,13 +322,13 @@ OperationRegistry create_operation_registry() {
 Visualization tools render interactive overlays on top of the active plot.
 They inherit from `IVisualizationTool`.
 
-**Step 1 — Create header** `include/gnc_viz/my_tool.hpp`:
+**Step 1 — Create header** `include/fastscope/my_tool.hpp`:
 
 ```cpp
 #pragma once
-#include "gnc_viz/interfaces.hpp"
+#include "fastscope/interfaces.hpp"
 
-namespace gnc_viz {
+namespace fastscope {
 
 class MyTool : public IVisualizationTool {
 public:
@@ -344,7 +342,7 @@ public:
     void on_deactivate() override;
 };
 
-} // namespace gnc_viz
+} // namespace fastscope
 ```
 
 **Step 2 — Implement** in `src/lib/my_tool.cpp`.
@@ -363,7 +361,7 @@ ToolManager::ToolManager() {
 
 ## 7. The Registry<T> Template {#registry}
 
-`Registry<Interface>` (in `include/gnc_viz/registry.hpp`) maps string keys to factory
+`Registry<Interface>` (in `include/fastscope/registry.hpp`) maps string keys to factory
 functions that produce `unique_ptr<Interface>`.
 
 ```cpp
@@ -417,15 +415,15 @@ Tests live under `tests/` and use [Catch2 v3](https://github.com/catchorg/Catch2
 
 ```bash
 # Build and run tests
-cmake --build build --target gnc_viz_tests
-./build/gnc_viz_tests
+cmake --build build --target fastscope_tests
+./build/fastscope_tests
 
 # Run a specific test by name/tag
-./build/gnc_viz_tests "[signal_buffer]"
-./build/gnc_viz_tests "[registry]"
+./build/fastscope_tests "[signal_buffer]"
+./build/fastscope_tests "[registry]"
 
 # Run with verbose output
-./build/gnc_viz_tests -v
+./build/fastscope_tests -v
 ```
 
 ### Writing a new test
@@ -433,7 +431,7 @@ cmake --build build --target gnc_viz_tests
 ```cpp
 // tests/test_my_component.cpp
 #include <catch2/catch_test_macros.hpp>
-#include "gnc_viz/my_component.hpp"
+#include "fastscope/my_component.hpp"
 
 TEST_CASE("MyComponent does X", "[my_component]") {
     MyComponent c;
@@ -441,13 +439,13 @@ TEST_CASE("MyComponent does X", "[my_component]") {
 }
 ```
 
-Add the file to the `gnc_viz_tests` target in `tests/CMakeLists.txt`.
+Add the file to the `fastscope_tests` target in `tests/CMakeLists.txt`.
 
 ---
 
 ## 10. Session JSON Schema {#session-schema}
 
-Session files (default path `~/.gnc_viz/session.json`) use the following schema:
+Session files (default path `~/.fastscope/session.json`) use the following schema:
 
 ```json
 {
@@ -483,31 +481,31 @@ Session files (default path `~/.gnc_viz/session.json`) use the following schema:
 
 ---
 
-## 11. Error Handling (gnc::Result<T>) {#error-handling}
+## 11. Error Handling (fastscope::Result<T>) {#error-handling}
 
-All fallible public API functions return `gnc::Result<T>` (`std::expected<T, gnc::Error>`).
+All fallible public API functions return `fastscope::Result<T>` (`std::expected<T, fastscope::Error>`).
 
 ```cpp
 // Return a successful value
 return std::make_shared<SignalBuffer>(...);
 
 // Return an error
-return gnc::make_error<std::shared_ptr<SignalBuffer>>(
-    gnc::ErrorCode::HDF5ReadFailed,
+return fastscope::make_error<std::shared_ptr<SignalBuffer>>(
+    fastscope::ErrorCode::HDF5ReadFailed,
     "Cannot read dataset",
     "/attitude/quaternion");
 
-// Propagate errors with GNC_TRY
-gnc::Result<Foo> my_func() {
-    auto x = GNC_TRY(step_one());
-    auto y = GNC_TRY(step_two(x));
+// Propagate errors with FASTSCOPE_TRY
+fastscope::Result<Foo> my_func() {
+    auto x = FASTSCOPE_TRY(step_one());
+    auto y = FASTSCOPE_TRY(step_two(x));
     return Foo{x, y};
 }
 
 // Handle errors at the call site
 auto result = load_signal(meta);
 if (!result) {
-    GNC_LOG_WARN("Load failed: {}", result.error().to_string());
+    FASTSCOPE_LOG_WARN("Load failed: {}", result.error().to_string());
     return;
 }
 auto& buf = result.value();

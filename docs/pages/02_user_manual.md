@@ -1,9 +1,9 @@
 @page user_manual User Manual
-@brief Step-by-step guide for spacecraft engineers
+@brief Step-by-step guide for users
 
 # User Manual
 
-This guide explains how to install and use GNC Viz.  No programming knowledge is required.
+This guide explains how to install and use FastScope.  No programming knowledge is required.
 
 ---
 
@@ -11,11 +11,11 @@ This guide explains how to install and use GNC Viz.  No programming knowledge is
 
 1. [Installation](#installation)
 2. [Launching the Application](#launching)
-3. [Loading Simulation Files](#loading-files)
+3. [Loading HDF5 Files](#loading-files)
 4. [The Three-Pane Layout](#layout)
 5. [Browsing the Signal Tree](#signal-tree)
 6. [Adding and Removing Signals](#add-remove)
-7. [Renaming Simulations](#renaming)
+7. [Renaming Files](#renaming)
 8. [Plot Interactions](#plot-interactions)
 9. [Multi-Y-Axis Plots](#multi-y-axis)
 10. [Crosshair Tooltip](#crosshair)
@@ -34,7 +34,7 @@ This guide explains how to install and use GNC Viz.  No programming knowledge is
 
 ### Prerequisites
 
-GNC Viz runs on **macOS 13 Ventura or later** (Apple Silicon and Intel both supported).
+FastScope runs on **macOS 13 Ventura or later** (Apple Silicon and Intel both supported).
 It requires HDF5 libraries, which you can install using Homebrew:
 
 ```bash
@@ -49,8 +49,8 @@ brew install hdf5
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/gnc_viz.git
-cd gnc_viz
+git clone https://github.com/your-org/fastscope.git
+cd fastscope
 
 # Configure (Release mode for best performance)
 cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -62,11 +62,11 @@ cmake --build build -j
 cmake --build build --target test
 ```
 
-After a successful build, the application binary is at `build/gnc_viz`.
+After a successful build, the application binary is at `build/fastscope`.
 
 ### Pre-built Application Bundle *(when available)*
 
-Download `GNCViz.dmg` from the Releases page, open it, and drag `GNC Viz.app` into your
+Download `FastScope.dmg` from the Releases page, open it, and drag `FastScope.app` into your
 `/Applications` folder.  On first launch, macOS may warn about an unidentified developer;
 right-click the app icon and choose **Open** to bypass the check.
 
@@ -76,26 +76,26 @@ right-click the app icon and choose **Open** to bypass the check.
 
 **From the command line:**
 ```bash
-./build/gnc_viz
+./build/fastscope
 ```
 
 You can also pass an HDF5 file as an argument and it will be loaded automatically:
 ```bash
-./build/gnc_viz /path/to/my_simulation.h5
+./build/fastscope /path/to/my_data.h5
 ```
 
 **From Finder:** double-click the app bundle if you placed it in `/Applications`.
 
 ---
 
-## 3. Loading Simulation Files {#loading-files}
+## 3. Loading HDF5 Files {#loading-files}
 
-GNC Viz can open one or more HDF5 (`.h5` / `.hdf5`) files at the same time.  Each file
-becomes an independent *simulation* shown in the left **Files** pane.
+FastScope can open one or more HDF5 (`.h5` / `.hdf5`) files at the same time.  Each file
+becomes an independent *dataset* shown in the left **Files** pane.
 
 ### Method A — Drag and Drop
 
-Drag one or more `.h5` files from Finder directly onto the GNC Viz window.
+Drag one or more `.h5` files from Finder directly onto the FastScope window.
 The files are opened immediately and appear in the Files pane.
 
 ### Method B — Open Dialog (Cmd+O)
@@ -105,10 +105,10 @@ You can select multiple files by holding **Shift** or **Cmd** while clicking.
 
 ### Time Axis Selection
 
-When a file is opened, GNC Viz automatically detects likely time-axis datasets
+When a file is opened, FastScope automatically detects likely time-axis datasets
 (datasets whose name contains "time" or "t" and that are one-dimensional).
 The detected time axis is shown in the Files pane.  You can change it by clicking
-the dropdown next to the simulation name and selecting a different dataset, or by
+the dropdown next to the file name and selecting a different dataset, or by
 selecting **(index)** to use sample numbers (0, 1, 2, …) as the X axis.
 
 ---
@@ -123,7 +123,7 @@ The main window is divided into three areas side by side:
 │  (left)      │  (middle)        │  (right)                     │
 │              │                  │                              │
 │  Lists open  │  Shows the       │  Renders the active plot.    │
-│  simulation  │  HDF5 signal     │  Drag, zoom, annotate here.  │
+│  dataset     │  HDF5 signal     │  Drag, zoom, annotate here.  │
 │  files and   │  tree for the    │                              │
 │  time axis   │  selected sim.   │                              │
 │  controls.   │  Search & add    │                              │
@@ -139,7 +139,7 @@ into a narrow icon strip, giving more space to the plot.  Click again to expand.
 ## 5. Browsing the Signal Tree {#signal-tree}
 
 The middle **Signals** pane shows the hierarchical HDF5 dataset tree for whichever
-simulation is selected in the Files pane (click a simulation name to select it).
+dataset is selected in the Files pane (click a simulation name to select it).
 
 ### Expanding Groups
 
@@ -187,16 +187,16 @@ hide the line without removing the signal.  Click again to show it.
 
 ---
 
-## 7. Renaming Simulations {#renaming}
+## 7. Renaming Files {#renaming}
 
-By default, simulations are named after their HDF5 filename (without the directory
-path or `.h5` extension).  To give a simulation a friendlier name:
+By default, files are named after their HDF5 filename (without the directory
+path or `.h5` extension).  To give a file a friendlier name:
 
-1. In the **Files** pane, double-click the simulation name.
+1. In the **Files** pane, double-click the file name.
 2. Type the new name.
 3. Press **Enter** to confirm, or **Esc** to cancel.
 
-The new name appears in the legend prefix for all signals from that simulation.
+The new name appears in the legend prefix for all signals from that file.
 
 ---
 
@@ -230,7 +230,7 @@ The Fit buttons are located in the toolbar above the plot area.
 
 ## 9. Multi-Y-Axis Plots {#multi-y-axis}
 
-GNC Viz supports up to **three independent Y axes** on a single Time Series plot,
+FastScope supports up to **three independent Y axes** on a single Time Series plot,
 which is essential when comparing signals with very different units or scales
 (e.g. a position in km alongside an angular rate in deg/s).
 
@@ -251,7 +251,7 @@ floating tooltip shows:
 - The **time value** at the cursor position
 - The **interpolated value** of every visible signal at that time
 
-This is useful for quickly reading exact values at a specific moment in the simulation.
+This is useful for quickly reading exact values at a specific point in the data.
 
 ---
 
@@ -262,9 +262,7 @@ to switch between:
 
 | Plot Type | Description |
 |-----------|-------------|
-| **Time Series** | Default. Plots one or more signals against simulation time. |
-| **2D Trajectory** | Plots one vector signal as a 2D path. Use the axis-pair selector (XY / YZ / XZ) to choose the plane. |
-| **Ground Track** | Converts an ECI position vector to latitude/longitude and plots the satellite ground track. |
+| **Time Series** | Default. Plots one or more signals against the time axis. |
 
 When you switch plot types, the signals already added remain selected; the new plot
 type will render them in its own way.
@@ -307,7 +305,7 @@ Click the first point again to reset and start a new measurement.
 
 ## 14. Derived Signals {#derived-signals}
 
-GNC Viz can compute new signals on the fly from existing ones, without any scripting.
+FastScope can compute new signals on the fly from existing ones, without any scripting.
 
 To create a derived signal:
 
@@ -319,7 +317,7 @@ To create a derived signal:
    - **Multiply** — product of two scalar signals
    - **Scale** — multiply a signal by a numeric constant
    - **Magnitude** — √(x₀² + x₁² + … + xₙ₋₁²) across N component signals
-4. Select the **input signals** from the loaded simulations.
+4. Select the **input signals** from the loaded files.
 5. Give the derived signal a **display name** (e.g. `"‖r_eci‖"`).
 6. Click **Compute**.
 
@@ -349,7 +347,7 @@ of the screen.  The saved image is in full resolution.
 
 ## 16. Session Save and Restore {#session}
 
-GNC Viz can save and restore your complete workspace.
+FastScope can save and restore your complete workspace.
 
 ### Auto-save on Exit
 
@@ -388,7 +386,7 @@ When a pane is collapsed, you can still see its icon so you remember it's there.
 | Shortcut | Action |
 |----------|--------|
 | **Cmd+O** | Open file(s) |
-| **Cmd+W** | Close selected simulation |
+| **Cmd+W** | Close selected file |
 | **Cmd+S** | Save session |
 | **Cmd+Shift+E** | Export CSV |
 | **Cmd+Shift+S** | Export PNG |

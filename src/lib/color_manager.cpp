@@ -1,7 +1,7 @@
-#include "gnc_viz/color_manager.hpp"
+#include "fastscope/color_manager.hpp"
 #include <cassert>
 
-namespace gnc_viz {
+namespace fastscope {
 
 ColorManager::ColorManager(const Palette& palette)
     : m_palette(palette)
@@ -76,4 +76,4 @@ uint32_t ColorManager::from_float4(float r, float g, float b, float a) noexcept
     return (to_byte(r) << 24) | (to_byte(g) << 16) | (to_byte(b) << 8) | to_byte(a);
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

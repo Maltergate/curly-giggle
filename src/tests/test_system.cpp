@@ -1,29 +1,29 @@
 // test_system.cpp — integration-style system tests
 //
-// These tests exercise real end-to-end workflows using only gnc_viz_lib types.
+// These tests exercise real end-to-end workflows using only fastscope_lib types.
 // No HDF5 files, ImGui context, or PlotEngine required.
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
-#include "gnc_viz/app_state.hpp"
-#include "gnc_viz/axis_manager.hpp"
-#include "gnc_viz/color_manager.hpp"
-#include "gnc_viz/plotted_signal.hpp"
-#include "gnc_viz/session.hpp"
-#include "gnc_viz/signal_metadata.hpp"
-#include "gnc_viz/simulation_file.hpp"
+#include "fastscope/app_state.hpp"
+#include "fastscope/axis_manager.hpp"
+#include "fastscope/color_manager.hpp"
+#include "fastscope/plotted_signal.hpp"
+#include "fastscope/session.hpp"
+#include "fastscope/signal_metadata.hpp"
+#include "fastscope/simulation_file.hpp"
 
 #include <filesystem>
 #include <fstream>
 #include <string>
 
 namespace fs = std::filesystem;
-using namespace gnc_viz;
+using namespace fastscope;
 
 // Shared temp path for session round-trip tests
 static const fs::path k_sys_tmp =
-    fs::temp_directory_path() / "gnc_viz_test_system.json";
+    fs::temp_directory_path() / "fastscope_test_system.json";
 
 static void remove_sys_tmp()
 {
@@ -52,7 +52,7 @@ TEST_CASE("System: AppState default construction has empty data and correct flag
 
 // ── 2. SimulationFile: open nonexistent path returns error ───────────────────
 //
-// Verifies that opening a missing HDF5 file returns a gnc::Result error and
+// Verifies that opening a missing HDF5 file returns a fastscope::Result error and
 // leaves the SimulationFile in a closed state while preserving the sim_id.
 
 TEST_CASE("System: SimulationFile open nonexistent path returns error and stays closed",

@@ -1,9 +1,9 @@
-#include "gnc_viz/version.hpp"
+#include "fastscope/version.hpp"
 
-namespace gnc_viz {
+namespace fastscope {
 
 const char* version() noexcept {
     return VERSION_STRING.data();
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

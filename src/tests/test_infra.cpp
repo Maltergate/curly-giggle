@@ -1,18 +1,18 @@
 #include <catch2/catch_test_macros.hpp>
 #include <string_view>
-#include "gnc_viz/version.hpp"
+#include "fastscope/version.hpp"
 
 // ── Version ────────────────────────────────────────────────────────────────────
 
 TEST_CASE("Version string is non-empty", "[infra][version]") {
-    REQUIRE(!std::string_view{gnc_viz::version()}.empty());
+    REQUIRE(!std::string_view{fastscope::version()}.empty());
 }
 
 TEST_CASE("Version constants are consistent", "[infra][version]") {
-    REQUIRE(gnc_viz::VERSION_MAJOR == 0);
-    REQUIRE(gnc_viz::VERSION_MINOR == 1);
-    REQUIRE(gnc_viz::VERSION_PATCH == 0);
-    REQUIRE(gnc_viz::VERSION_STRING == "0.1.0");
+    REQUIRE(fastscope::VERSION_MAJOR == 0);
+    REQUIRE(fastscope::VERSION_MINOR == 1);
+    REQUIRE(fastscope::VERSION_PATCH == 0);
+    REQUIRE(fastscope::VERSION_STRING == "0.1.0");
 }
 
 // ── Build-system sanity ────────────────────────────────────────────────────────

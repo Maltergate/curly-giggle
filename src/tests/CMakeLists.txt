@@ -1,7 +1,7 @@
 include(CTest)
 include(Catch)
 
-add_executable(gnc_viz_tests
+add_executable(fastscope_tests
     test_infra.cpp
     test_error.cpp
     test_log.cpp
@@ -27,13 +27,13 @@ add_executable(gnc_viz_tests
     ../app/ruler_tool.cpp
 )
 
-target_link_libraries(gnc_viz_tests PRIVATE
-    gnc_viz_lib
+target_link_libraries(fastscope_tests PRIVATE
+    fastscope_lib
     imgui_lib
     implot_lib
     Catch2::Catch2WithMain
 )
 
-gnc_viz_set_compile_options(gnc_viz_tests)
+fastscope_set_compile_options(fastscope_tests)
 
-catch_discover_tests(gnc_viz_tests)
+catch_discover_tests(fastscope_tests)

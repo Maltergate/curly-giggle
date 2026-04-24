@@ -1,8 +1,8 @@
-#include "gnc_viz/session.hpp"
-#include "gnc_viz/app_state.hpp"
-#include "gnc_viz/simulation_file.hpp"
-#include "gnc_viz/axis_manager.hpp"
-#include "gnc_viz/log.hpp"
+#include "fastscope/session.hpp"
+#include "fastscope/app_state.hpp"
+#include "fastscope/simulation_file.hpp"
+#include "fastscope/axis_manager.hpp"
+#include "fastscope/log.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -10,7 +10,7 @@
 #include <filesystem>
 #include <cstdio>
 
-namespace gnc_viz {
+namespace fastscope {
 
 std::filesystem::path default_session_path()
 {
@@ -18,7 +18,7 @@ std::filesystem::path default_session_path()
     std::filesystem::path base = home
         ? std::filesystem::path(home)
         : std::filesystem::current_path();
-    return base / ".gnc_viz" / "session.json";
+    return base / ".fastscope" / "session.json";
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -101,15 +101,15 @@ bool save_session(const AppState& state, const std::filesystem::path& path)
 
         std::ofstream ofs(path);
         if (!ofs) {
-            GNC_LOG_WARN("save_session: cannot open '{}' for writing", path.string());
+            FASTSCOPE_LOG_WARN("save_session: cannot open '{}' for writing", path.string());
             return false;
         }
         ofs << j.dump(2) << '\n';
-        GNC_LOG_INFO("save_session: saved to '{}'", path.string());
+        FASTSCOPE_LOG_INFO("save_session: saved to '{}'", path.string());
         return true;
 
     } catch (const std::exception& e) {
-        GNC_LOG_WARN("save_session: exception: {}", e.what());
+        FASTSCOPE_LOG_WARN("save_session: exception: {}", e.what());
         return false;
     }
 }
@@ -121,13 +121,13 @@ bool load_session(AppState& state, const std::filesystem::path& path)
     using json = nlohmann::json;
 
     if (!std::filesystem::exists(path)) {
-        GNC_LOG_DEBUG("load_session: file not found '{}'", path.string());
+        FASTSCOPE_LOG_DEBUG("load_session: file not found '{}'", path.string());
         return false;
     }
 
     std::ifstream ifs(path);
     if (!ifs) {
-        GNC_LOG_WARN("load_session: cannot open '{}' for reading", path.string());
+        FASTSCOPE_LOG_WARN("load_session: cannot open '{}' for reading", path.string());
         return false;
     }
 
@@ -135,12 +135,12 @@ bool load_session(AppState& state, const std::filesystem::path& path)
     try {
         j = json::parse(ifs);
     } catch (const json::exception& e) {
-        GNC_LOG_WARN("load_session: JSON parse error in '{}': {}", path.string(), e.what());
+        FASTSCOPE_LOG_WARN("load_session: JSON parse error in '{}': {}", path.string(), e.what());
         return false;
     }
 
     if (j.value("version", 0) != 1) {
-        GNC_LOG_WARN("load_session: unsupported session version in '{}'", path.string());
+        FASTSCOPE_LOG_WARN("load_session: unsupported session version in '{}'", path.string());
         return false;
     }
 
@@ -156,7 +156,7 @@ bool load_session(AppState& state, const std::filesystem::path& path)
             if (!disp.empty()) sim->set_display_name(disp);
             state.simulations.push_back(std::move(sim));
         } else {
-            GNC_LOG_WARN("load_session: could not open '{}': {}", sim_path, res.error().message);
+            FASTSCOPE_LOG_WARN("load_session: could not open '{}': {}", sim_path, res.error().message);
         }
     }
 
@@ -171,7 +171,7 @@ bool load_session(AppState& state, const std::filesystem::path& path)
             if (s->sim_id() == sim_id) { sim = s.get(); break; }
         }
         if (!sim) {
-            GNC_LOG_WARN("load_session: sim_id '{}' not found for signal '{}'", sim_id, h5_path);
+            FASTSCOPE_LOG_WARN("load_session: sim_id '{}' not found for signal '{}'", sim_id, h5_path);
             continue;
         }
 
@@ -180,7 +180,7 @@ bool load_session(AppState& state, const std::filesystem::path& path)
             if (meta.h5_path == h5_path) { meta_ptr = &meta; break; }
         }
         if (!meta_ptr) {
-            GNC_LOG_WARN("load_session: signal '{}' not found in sim '{}'", h5_path, sim_id);
+            FASTSCOPE_LOG_WARN("load_session: signal '{}' not found in sim '{}'", h5_path, sim_id);
             continue;
         }
 
@@ -216,8 +216,8 @@ bool load_session(AppState& state, const std::filesystem::path& path)
         state.panes.signal_pane_width   = panes.value("signal_pane_width",   300.0f);
     }
 
-    GNC_LOG_INFO("load_session: restored from '{}'", path.string());
+    FASTSCOPE_LOG_INFO("load_session: restored from '{}'", path.string());
     return true;
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

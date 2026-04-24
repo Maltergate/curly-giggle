@@ -1,16 +1,16 @@
 // signal_tree_widget.cpp — Middle pane: hierarchical signal browser
 
-#include "gnc_viz/signal_tree_widget.hpp"
-#include "gnc_viz/app_state.hpp"
-#include "gnc_viz/plotted_signal.hpp"
-#include "gnc_viz/simulation_file.hpp"
+#include "fastscope/signal_tree_widget.hpp"
+#include "fastscope/app_state.hpp"
+#include "fastscope/plotted_signal.hpp"
+#include "fastscope/simulation_file.hpp"
 
 #include "imgui.h"
 
 #include <algorithm>
 #include <string>
 
-namespace gnc_viz {
+namespace fastscope {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -151,4 +151,4 @@ void render_signal_tree(AppState& state)
     }
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

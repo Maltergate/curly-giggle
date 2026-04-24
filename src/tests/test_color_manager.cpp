@@ -1,9 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
-#include "gnc_viz/color_manager.hpp"
+#include "fastscope/color_manager.hpp"
 
-using gnc_viz::ColorManager;
-using gnc_viz::Palette;
+using fastscope::ColorManager;
+using fastscope::Palette;
 using Catch::Matchers::WithinAbs;
 
 TEST_CASE("ColorManager starts with zero assignments", "[color_manager]")

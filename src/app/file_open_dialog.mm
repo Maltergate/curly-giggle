@@ -3,9 +3,9 @@
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 
-#include "gnc_viz/file_open_dialog.hpp"
+#include "fastscope/file_open_dialog.hpp"
 
-namespace gnc_viz {
+namespace fastscope {
 
 OpenDialogResult show_open_dialog(const char*              title,
                                   bool                     allow_multiple,
@@ -80,4 +80,4 @@ SaveDialogResult show_save_dialog(const std::string& title,
     return result;
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

@@ -1,11 +1,11 @@
 // tool_manager.cpp — ToolManager implementation
 
-#include "gnc_viz/tool_manager.hpp"
-#include "gnc_viz/annotation_tool.hpp"
-#include "gnc_viz/ruler_tool.hpp"
-#include "gnc_viz/app_state.hpp"
+#include "fastscope/tool_manager.hpp"
+#include "fastscope/annotation_tool.hpp"
+#include "fastscope/ruler_tool.hpp"
+#include "fastscope/app_state.hpp"
 
-namespace gnc_viz {
+namespace fastscope {
 
 ToolManager::ToolManager()
 {
@@ -82,4 +82,4 @@ IVisualizationTool* ToolManager::active_tool() noexcept
     return m_active.get();
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

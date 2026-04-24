@@ -1,13 +1,13 @@
-#include "gnc_viz/ground_track_plot.hpp"
-#include "gnc_viz/app_state.hpp"
-#include "gnc_viz/plotted_signal.hpp"
-#include "gnc_viz/signal_buffer.hpp"
+#include "fastscope/ground_track_plot.hpp"
+#include "fastscope/app_state.hpp"
+#include "fastscope/plotted_signal.hpp"
+#include "fastscope/signal_buffer.hpp"
 #include "implot.h"
 #include "imgui.h"
 #include <algorithm>
 #include <cmath>
 
-namespace gnc_viz {
+namespace fastscope {
 
 static constexpr double RAD_TO_DEG = 180.0 / M_PI;
 
@@ -87,4 +87,4 @@ void GroundTrackPlot::render(AppState& state, float width, float height)
     ImPlot::EndPlot();
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

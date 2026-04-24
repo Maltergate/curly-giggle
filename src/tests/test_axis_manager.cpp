@@ -1,12 +1,12 @@
 // test_axis_manager.cpp — unit tests for AxisManager
 
-#include "gnc_viz/axis_manager.hpp"
+#include "fastscope/axis_manager.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
-using gnc_viz::AxisManager;
-using gnc_viz::AxisConfig;
+using fastscope::AxisManager;
+using fastscope::AxisConfig;
 
 // ── Default behaviour ─────────────────────────────────────────────────────────
 

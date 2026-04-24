@@ -1,9 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gnc_viz/signal_buffer.hpp"
-#include "gnc_viz/signal_metadata.hpp"
+#include "fastscope/signal_buffer.hpp"
+#include "fastscope/signal_metadata.hpp"
 
-using gnc_viz::SignalBuffer;
-using gnc_viz::SignalMetadata;
+using fastscope::SignalBuffer;
+using fastscope::SignalMetadata;
 
 static SignalMetadata make_scalar_meta()
 {

@@ -3,7 +3,7 @@
 // Creates synthetic in-memory HDF5 files using H5P_FAPL_CORE to avoid
 // writing to disk. Tests enumerate_signals and load_signal.
 
-#include "gnc_viz/hdf5_reader.hpp"
+#include "fastscope/hdf5_reader.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
@@ -156,7 +156,7 @@ static std::string make_test_h5(const char* tag)
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 TEST_CASE("HDF5Reader: open non-existent file returns error") {
-    gnc_viz::HDF5Reader r;
+    fastscope::HDF5Reader r;
     auto res = r.open("/tmp/does_not_exist_gnc.h5");
     REQUIRE(!res);
     REQUIRE(!r.is_open());
@@ -164,7 +164,7 @@ TEST_CASE("HDF5Reader: open non-existent file returns error") {
 
 TEST_CASE("HDF5Reader: open + close") {
     std::string path = make_test_h5("open_close");
-    gnc_viz::HDF5Reader r;
+    fastscope::HDF5Reader r;
     auto res = r.open(path);
     REQUIRE(res);
     REQUIRE(r.is_open());
@@ -174,7 +174,7 @@ TEST_CASE("HDF5Reader: open + close") {
 
 TEST_CASE("HDF5Reader: enumerate_signals includes all datasets (including time)") {
     std::string path = make_test_h5("enumerate");
-    gnc_viz::HDF5Reader r;
+    fastscope::HDF5Reader r;
     REQUIRE(r.open(path));
     auto res = r.enumerate_signals("sim1");
     REQUIRE(res);
@@ -188,7 +188,7 @@ TEST_CASE("HDF5Reader: enumerate_signals includes all datasets (including time)"
             found_alt = true;
             CHECK(m.sim_id == "sim1");
             CHECK(m.units == "m");
-            CHECK(m.dtype == gnc_viz::DataType::Float64);
+            CHECK(m.dtype == fastscope::DataType::Float64);
             CHECK(m.shape.size() == 1);
             CHECK(m.shape[0] == 10);
         }
@@ -206,7 +206,7 @@ TEST_CASE("HDF5Reader: enumerate_signals includes all datasets (including time)"
 
 TEST_CASE("HDF5Reader: suggest_time_axes finds time dataset") {
     std::string path = make_test_h5("suggest_time");
-    gnc_viz::HDF5Reader r;
+    fastscope::HDF5Reader r;
     REQUIRE(r.open(path));
     auto candidates = r.suggest_time_axes();
     REQUIRE(!candidates.empty());
@@ -216,19 +216,19 @@ TEST_CASE("HDF5Reader: suggest_time_axes finds time dataset") {
 TEST_CASE("HDF5Reader: load scalar signal") {
     using Catch::Matchers::WithinAbs;
     std::string path = make_test_h5("load_scalar");
-    gnc_viz::HDF5Reader r;
+    fastscope::HDF5Reader r;
     REQUIRE(r.open(path));
 
     auto sigs = r.enumerate_signals("simA");
     REQUIRE(sigs);
 
-    const gnc_viz::SignalMetadata* alt_meta = nullptr;
+    const fastscope::SignalMetadata* alt_meta = nullptr;
     for (const auto& m : *sigs)
         if (m.name == "altitude") { alt_meta = &m; break; }
     REQUIRE(alt_meta != nullptr);
 
     // Set the time axis explicitly (user would select this in the UI)
-    gnc_viz::SignalMetadata meta_with_time = *alt_meta;
+    fastscope::SignalMetadata meta_with_time = *alt_meta;
     meta_with_time.time_path = "/time";
 
     auto buf_res = r.load_signal(meta_with_time);
@@ -247,18 +247,18 @@ TEST_CASE("HDF5Reader: load scalar signal") {
 TEST_CASE("HDF5Reader: load vector signal") {
     using Catch::Matchers::WithinAbs;
     std::string path = make_test_h5("load_vector");
-    gnc_viz::HDF5Reader r;
+    fastscope::HDF5Reader r;
     REQUIRE(r.open(path));
 
     auto sigs = r.enumerate_signals("simB");
     REQUIRE(sigs);
 
-    const gnc_viz::SignalMetadata* vel_meta = nullptr;
+    const fastscope::SignalMetadata* vel_meta = nullptr;
     for (const auto& m : *sigs)
         if (m.name == "velocity") { vel_meta = &m; break; }
     REQUIRE(vel_meta != nullptr);
 
-    gnc_viz::SignalMetadata meta_with_time = *vel_meta;
+    fastscope::SignalMetadata meta_with_time = *vel_meta;
     meta_with_time.time_path = "/time";
 
     auto buf_res = r.load_signal(meta_with_time);
@@ -277,13 +277,13 @@ TEST_CASE("HDF5Reader: load vector signal") {
 TEST_CASE("HDF5Reader: no time_path gives sample-index axis") {
     using Catch::Matchers::WithinAbs;
     std::string path = make_test_h5("index_axis");
-    gnc_viz::HDF5Reader r;
+    fastscope::HDF5Reader r;
     REQUIRE(r.open(path));
 
     auto sigs = r.enumerate_signals();
     REQUIRE(sigs);
 
-    const gnc_viz::SignalMetadata* alt_meta = nullptr;
+    const fastscope::SignalMetadata* alt_meta = nullptr;
     for (const auto& m : *sigs)
         if (m.name == "altitude") { alt_meta = &m; break; }
     REQUIRE(alt_meta != nullptr);
@@ -298,15 +298,15 @@ TEST_CASE("HDF5Reader: no time_path gives sample-index axis") {
 }
 
 TEST_CASE("HDF5Reader: load_signal without open returns error") {
-    gnc_viz::HDF5Reader r;
-    gnc_viz::SignalMetadata meta;
+    fastscope::HDF5Reader r;
+    fastscope::SignalMetadata meta;
     meta.h5_path = "/altitude";
     auto res = r.load_signal(meta);
     REQUIRE(!res);
 }
 
 TEST_CASE("HDF5Reader: enumerate without open returns error") {
-    gnc_viz::HDF5Reader r;
+    fastscope::HDF5Reader r;
     auto res = r.enumerate_signals();
     REQUIRE(!res);
 }

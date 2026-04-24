@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(gnc_viz
+project(fastscope
     VERSION 0.1.0
     DESCRIPTION "GNC Simulation Data Visualizer"
     LANGUAGES C CXX OBJCXX

@@ -1,11 +1,11 @@
-#include "gnc_viz/trajectory_2d_plot.hpp"
-#include "gnc_viz/app_state.hpp"
-#include "gnc_viz/plotted_signal.hpp"
+#include "fastscope/trajectory_2d_plot.hpp"
+#include "fastscope/app_state.hpp"
+#include "fastscope/plotted_signal.hpp"
 #include "implot.h"
 #include "imgui.h"
 #include <algorithm>
 
-namespace gnc_viz {
+namespace fastscope {
 
 // Convert packed 0xRRGGBBAA → ImVec4 in [0,1].
 static ImVec4 unpack_rgba_traj(uint32_t rgba) noexcept
@@ -105,4 +105,4 @@ void Trajectory2DPlot::render(AppState& state, float width, float height)
     ImPlot::EndPlot();
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

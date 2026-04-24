@@ -1,8 +1,8 @@
-#include "gnc_viz/axis_manager.hpp"
+#include "fastscope/axis_manager.hpp"
 
 #include <algorithm>
 
-namespace gnc_viz {
+namespace fastscope {
 
 AxisManager::AxisManager()
 {
@@ -77,4 +77,4 @@ void AxisManager::clear_assignments()
     m_assignments.clear();
 }
 
-} // namespace gnc_viz
+} // namespace fastscope

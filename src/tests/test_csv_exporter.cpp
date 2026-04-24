@@ -1,13 +1,13 @@
-// test_csv_exporter.cpp — Unit tests for gnc_viz::export_csv
+// test_csv_exporter.cpp — Unit tests for fastscope::export_csv
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
 
-#include "gnc_viz/csv_exporter.hpp"
-#include "gnc_viz/app_state.hpp"
-#include "gnc_viz/plotted_signal.hpp"
-#include "gnc_viz/signal_buffer.hpp"
-#include "gnc_viz/signal_metadata.hpp"
+#include "fastscope/csv_exporter.hpp"
+#include "fastscope/app_state.hpp"
+#include "fastscope/plotted_signal.hpp"
+#include "fastscope/signal_buffer.hpp"
+#include "fastscope/signal_metadata.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -15,10 +15,10 @@
 #include <string>
 #include <vector>
 
-using gnc_viz::AppState;
-using gnc_viz::PlottedSignal;
-using gnc_viz::SignalBuffer;
-using gnc_viz::SignalMetadata;
+using fastscope::AppState;
+using fastscope::PlottedSignal;
+using fastscope::SignalBuffer;
+using fastscope::SignalMetadata;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -83,7 +83,7 @@ static std::vector<std::string> split_csv(const std::string& line)
 static std::filesystem::path tmp_csv(const std::string& tag)
 {
     return std::filesystem::temp_directory_path() /
-           ("gnc_viz_test_csv_" + tag + ".csv");
+           ("fastscope_test_csv_" + tag + ".csv");
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ static std::filesystem::path tmp_csv(const std::string& tag)
 TEST_CASE("export_csv: empty plotted_signals returns error", "[csv_exporter]")
 {
     AppState state;
-    auto result = gnc_viz::export_csv(state, tmp_csv("empty"));
+    auto result = fastscope::export_csv(state, tmp_csv("empty"));
     REQUIRE_FALSE(result.has_value());
     REQUIRE_THAT(result.error().message,
                  Catch::Matchers::ContainsSubstring("No visible signals"));
@@ -104,7 +104,7 @@ TEST_CASE("export_csv: invisible signal is skipped", "[csv_exporter]")
     ps.visible = false;
     state.plotted_signals.push_back(std::move(ps));
 
-    auto result = gnc_viz::export_csv(state, tmp_csv("invisible"));
+    auto result = fastscope::export_csv(state, tmp_csv("invisible"));
     REQUIRE_FALSE(result.has_value());
 }
 
@@ -115,7 +115,7 @@ TEST_CASE("export_csv: scalar signal writes correct row count", "[csv_exporter]"
         make_scalar_signal("alt", {0.0, 1.0, 2.0, 3.0}, {100.0, 200.0, 300.0, 400.0}));
 
     auto path = tmp_csv("scalar_rowcount");
-    auto result = gnc_viz::export_csv(state, path);
+    auto result = fastscope::export_csv(state, path);
 
     REQUIRE(result.has_value());
     REQUIRE(*result == 4u);  // 4 data rows
@@ -139,7 +139,7 @@ TEST_CASE("export_csv: vector signal (4 components) writes 5 columns", "[csv_exp
         make_vector_signal("quat", time, values, 4));
 
     auto path = tmp_csv("vector4");
-    auto result = gnc_viz::export_csv(state, path);
+    auto result = fastscope::export_csv(state, path);
 
     REQUIRE(result.has_value());
     auto lines = read_lines(path);
@@ -158,7 +158,7 @@ TEST_CASE("export_csv: two signals produce correct column count", "[csv_exporter
         make_scalar_signal("vel", {0.0, 1.0, 2.0}, {4.0, 5.0, 6.0}));
 
     auto path = tmp_csv("two_signals");
-    auto result = gnc_viz::export_csv(state, path);
+    auto result = fastscope::export_csv(state, path);
 
     REQUIRE(result.has_value());
     auto lines = read_lines(path);
@@ -181,7 +181,7 @@ TEST_CASE("export_csv: header contains correct column names", "[csv_exporter]")
                            {1.0,2.0,3.0, 4.0,5.0,6.0}, 3));
 
     auto path = tmp_csv("header_names");
-    auto result = gnc_viz::export_csv(state, path);
+    auto result = fastscope::export_csv(state, path);
 
     REQUIRE(result.has_value());
     auto lines = read_lines(path);
@@ -205,7 +205,7 @@ TEST_CASE("export_csv: values in output file are correct", "[csv_exporter]")
         make_scalar_signal("speed", {0.0, 1.0, 2.0}, {10.5, 20.5, 30.5}));
 
     auto path = tmp_csv("values");
-    auto result = gnc_viz::export_csv(state, path);
+    auto result = fastscope::export_csv(state, path);
 
     REQUIRE(result.has_value());
     auto lines = read_lines(path);
@@ -234,7 +234,7 @@ TEST_CASE("export_csv: single component_index produces one value column", "[csv_
     state.plotted_signals.push_back(std::move(ps));
 
     auto path = tmp_csv("single_component");
-    auto result = gnc_viz::export_csv(state, path);
+    auto result = fastscope::export_csv(state, path);
 
     REQUIRE(result.has_value());
     auto lines = read_lines(path);
