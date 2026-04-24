@@ -1,4 +1,5 @@
 #include "fastscope/log.hpp"
+#include "fastscope/ui_log_sink.hpp"
 
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/rotating_file_sink.h>
@@ -37,6 +38,14 @@ void init(Config cfg)
                 cfg.file_path, max_size, max_files);
             file_sink->set_level(cfg.level);
             sinks.push_back(std::move(file_sink));
+        }
+
+        // ── In-memory UI sink (always registered) ─────────────────────────────
+        {
+            auto ui_sink = std::make_shared<UILogSink>();
+            ui_sink->set_level(spdlog::level::info);   // show info and above in the log pane
+            register_ui_log_sink(ui_sink);
+            sinks.push_back(std::move(ui_sink));
         }
 
         g_logger = std::make_shared<spdlog::logger>("fastscope", sinks.begin(), sinks.end());

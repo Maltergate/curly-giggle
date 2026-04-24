@@ -33,6 +33,7 @@
 #include "fastscope/derived_signal.hpp"
 #include "fastscope/operation_registry.hpp"
 #include "fastscope/signal_metadata.hpp"
+#include "fastscope/log_pane.hpp"
 #include "fastscope/session.hpp"
 
 #include <algorithm>
@@ -46,7 +47,7 @@ namespace fastscope {
 // ── forward declarations ───────────────────────────────────────────────────────
 static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& io);
 static void draw_vertical_splitter(const char* id, float* width, float avail_w);
-
+static void draw_horizontal_splitter(const char* id, float* height, float avail_h);
 // ── PIMPL — holds all ObjC / Metal / GLFW state ───────────────────────────────
 
 struct Application::Impl {
@@ -277,6 +278,24 @@ static void draw_vertical_splitter(const char* id, float* width, float avail_w)
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 }
 
+static void draw_horizontal_splitter(const char* id, float* height, float avail_h)
+{
+    const float w   = ImGui::GetContentRegionAvail().x;
+    const ImVec2 pos = ImGui::GetCursorScreenPos();
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        pos, ImVec2(pos.x + w, pos.y + 4.0f),
+        IM_COL32(60, 60, 65, 255));
+
+    ImGui::InvisibleButton(id, ImVec2(w, 4.0f));
+
+    if (ImGui::IsItemActive()) {
+        *height -= ImGui::GetIO().MouseDelta.y;
+        *height = std::clamp(*height, 40.0f, avail_h - 40.0f);
+    }
+    if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+}
+
 // ── Three-pane layout + UI composition ────────────────────────────────────────
 
 static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& io)
@@ -353,6 +372,7 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
         if (ImGui::BeginMenu("View")) {
             ImGui::MenuItem("Files pane",   nullptr, &state.panes.file_pane_visible);
             ImGui::MenuItem("Signals pane", nullptr, &state.panes.signal_pane_visible);
+            ImGui::MenuItem("Log pane",     nullptr, &state.panes.log_pane_visible);
             ImGui::Separator();
             ImGui::MenuItem("ImGui Demo",   nullptr, &state.debug.show_imgui_demo);
             ImGui::MenuItem("ImPlot Demo",  nullptr, &state.debug.show_implot_demo);
@@ -366,7 +386,12 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
     // ── Three-pane layout ─────────────────────────────────────────────────────
     const float avail_w = ImGui::GetContentRegionAvail().x;
     constexpr float status_bar_h = 22.0f;
-    const float avail_h = ImGui::GetContentRegionAvail().y - status_bar_h;
+    constexpr float splitter_h   = 4.0f;
+    const float log_h = state.panes.log_pane_visible
+                      ? state.panes.log_pane_height : 0.0f;
+    const float log_splitter_h = state.panes.log_pane_visible ? splitter_h : 0.0f;
+    const float avail_h = ImGui::GetContentRegionAvail().y
+                        - status_bar_h - log_h - log_splitter_h;
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
 
@@ -625,6 +650,13 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
     }
 
     ImGui::PopStyleVar();  // ItemSpacing
+
+    // ── Log pane (full width, resizable, below the three-pane area) ───────────
+    if (state.panes.log_pane_visible) {
+        draw_horizontal_splitter("##split_log", &state.panes.log_pane_height,
+                                  ImGui::GetContentRegionAvail().y - status_bar_h);
+        render_log_pane(avail_w, state.panes.log_pane_height);
+    }
 
     // ── Status bar ────────────────────────────────────────────────────────────
     {

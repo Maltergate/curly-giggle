@@ -12,6 +12,7 @@ add_executable(fastscope
     tool_manager.cpp
     annotation_tool.cpp
     ruler_tool.cpp
+    log_pane.cpp
 )
 
 target_compile_definitions(fastscope PRIVATE

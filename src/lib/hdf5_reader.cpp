@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cstring>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace fastscope {
@@ -169,6 +170,74 @@ static bool name_looks_like_time(const std::string& name) noexcept
            leaf.find("time") != std::string::npos;
 }
 
+// ── find_time_in_group: search immediate children of one group ────────────────
+
+struct GroupTimeCtx {
+    std::string group_path;          // absolute path of the group being searched
+    std::optional<std::string> found; // first matching time dataset, full path
+};
+
+static herr_t group_time_member(hid_t group_id, const char* name,
+                                 const H5L_info2_t* /*info*/, void* opaque)
+{
+    auto* ctx = static_cast<GroupTimeCtx*>(opaque);
+    if (ctx->found) return 1;  // already found — stop iteration
+
+    const hid_t ds = H5Dopen2(group_id, name, H5P_DEFAULT);
+    if (ds < 0) return 0;  // not a dataset (sub-group) — skip
+
+    hid_t space = H5Dget_space(ds);
+    hid_t dtype = H5Dget_type(ds);
+    const int ndims = H5Sget_simple_extent_ndims(space);
+    hsize_t dims[2] = {0, 1};
+    H5Sget_simple_extent_dims(space, dims, nullptr);
+    const H5T_class_t cls = H5Tget_class(dtype);
+    H5Tclose(dtype);
+    H5Sclose(space);
+    H5Dclose(ds);
+
+    const bool is_1d_float = (cls == H5T_FLOAT) &&
+                              ((ndims == 1) || (ndims == 2 && dims[1] == 1));
+    if (is_1d_float && name_looks_like_time(name)) {
+        ctx->found = (ctx->group_path == "/")
+                   ? std::string("/") + name
+                   : ctx->group_path + "/" + name;
+        return 1;
+    }
+    return 0;
+}
+
+/// Walk up the HDF5 hierarchy from @p signal_path to find the nearest time dataset.
+/// Returns the full HDF5 path of the first match, or std::nullopt if none found.
+static std::optional<std::string>
+find_time_path_for_impl(hid_t file_id, const std::string& signal_path)
+{
+    std::string current = signal_path;
+
+    while (true) {
+        // Compute parent group path
+        const auto slash = current.rfind('/');
+        std::string group = (slash == std::string::npos || slash == 0)
+                          ? "/" : current.substr(0, slash);
+
+        // Search direct children of this group
+        const hid_t grp = H5Gopen2(file_id, group.c_str(), H5P_DEFAULT);
+        if (grp >= 0) {
+            GroupTimeCtx ctx{group, std::nullopt};
+            hsize_t idx = 0;
+            H5Literate2(grp, H5_INDEX_NAME, H5_ITER_NATIVE, &idx,
+                        group_time_member, &ctx);
+            H5Gclose(grp);
+            if (ctx.found) return ctx.found;
+        }
+
+        if (group == "/") break;
+        current = group;
+    }
+
+    return std::nullopt;
+}
+
 static herr_t time_hint_visitor(hid_t /*loc_id*/, const char* name,
                                  const H5L_info2_t* /*linfo*/, void* opaque)
 {
@@ -260,6 +329,28 @@ HDF5Reader::enumerate_signals(const std::string& sim_id) const
         return fastscope::make_error<std::vector<SignalMetadata>>(
             fastscope::ErrorCode::IOError, "H5Lvisit2 failed");
 
+    // ── Auto-discover time axes (cached by parent group) ──────────────────────
+    // Signals in the same parent group share the same time resolution walk,
+    // so we cache results keyed by parent group path to avoid redundant scans.
+    std::unordered_map<std::string, std::string> time_cache;   // group → time_path
+
+    for (auto& meta : out) {
+        // Parent group of this signal
+        const auto slash  = meta.h5_path.rfind('/');
+        const std::string group = (slash == std::string::npos || slash == 0)
+                                ? "/" : meta.h5_path.substr(0, slash);
+
+        auto it = time_cache.find(group);
+        if (it == time_cache.end()) {
+            auto tp = find_time_path_for_impl(m_impl->file_id, meta.h5_path);
+            const std::string tp_str = tp.value_or("");
+            time_cache[group] = tp_str;
+            meta.time_path = tp_str;
+        } else {
+            meta.time_path = it->second;
+        }
+    }
+
     FASTSCOPE_LOG_DEBUG("HDF5: enumerated {} datasets in {}", out.size(), m_impl->path.string());
     return out;
 }
@@ -314,7 +405,7 @@ HDF5Reader::load_signal(const SignalMetadata& meta) const
             fastscope::ErrorCode::IOError,
             "H5Dread failed for " + meta.h5_path);
 
-    // Time axis: use meta.time_path if set; otherwise synthesise sample index
+    // Time axis: use meta.time_path if set; otherwise error
     std::vector<double> time_vec;
     if (!meta.time_path.empty()) {
         auto time_res = read_1d_doubles(m_impl->file_id, meta.time_path);
@@ -324,10 +415,13 @@ HDF5Reader::load_signal(const SignalMetadata& meta) const
                 "Time axis '" + meta.time_path + "': " + time_res.error().message);
         time_vec = std::move(*time_res);
     } else {
-        // No time axis selected — use 0-based sample index
-        time_vec.resize(N);
-        for (std::size_t i = 0; i < N; ++i)
-            time_vec[i] = static_cast<double>(i);
+        // No time reference was found during enumeration — refuse to plot
+        return fastscope::make_error<std::shared_ptr<SignalBuffer>>(
+            fastscope::ErrorCode::NotFound,
+            "No time reference found for '" + meta.h5_path + "'. "
+            "FastScope searched up the HDF5 hierarchy from this signal's group "
+            "but found no dataset named 'time' or 't'. "
+            "The signal cannot be plotted without a time axis.");
     }
 
     auto buf = SignalBuffer::make_vector(

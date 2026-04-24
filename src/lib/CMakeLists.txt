@@ -2,6 +2,7 @@ add_library(fastscope_lib STATIC
     version.cpp
     error.cpp
     log.cpp
+    ui_log_sink.cpp
     config.cpp
     signal_metadata.cpp
     signal_buffer.cpp
