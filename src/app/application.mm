@@ -682,7 +682,8 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
         ImGui::EndChild();
     }
 
-    ImGui::PopStyleVar();  // ItemSpacing
+    // ItemSpacing is still 0 here — do NOT pop until after the status bar so
+    // no gap is inserted between the panes and the bar.
 
     // ── Status bar ────────────────────────────────────────────────────────────
     {
@@ -693,6 +694,9 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
 
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.10f, 0.10f, 0.13f, 1.0f));
         ImGui::BeginChild("##StatusBar", ImVec2(-1.0f, status_bar_h), ImGuiChildFlags_None);
+
+        ImGui::PopStyleVar();  // ItemSpacing (restore here, inside the child)
+
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 0.0f));
         ImGui::SetCursorPosY(4.0f);
         ImGui::SetCursorPosX(8.0f);
