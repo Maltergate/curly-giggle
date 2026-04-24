@@ -54,7 +54,22 @@ struct PlottedSignal {
     /// heap allocation. Invalidated (cleared) if sim display name or alias changes.
     std::string cached_label;
 
+    /// Cached plot key "<sim_id>:<h5_path>". Built once on first use to avoid
+    /// per-frame string concatenation in axis synchronization loop.
+    std::string cached_plot_key;
+
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// Unique key for ImPlot series ID and ColorManager: "<sim_id>:<h5_path>".
+    /// Returns cached version if available; builds and caches on first call.
+    [[nodiscard]] const std::string& plot_key_cached() const {
+        // const_cast needed because we cache the result as a performance optimization
+        auto& self = const_cast<PlottedSignal&>(*this);
+        if (self.cached_plot_key.empty() && (!sim_id.empty() || !meta.h5_path.empty())) {
+            self.cached_plot_key = sim_id + ":" + meta.h5_path;
+        }
+        return cached_plot_key;
+    }
 
     /// Unique key for ImPlot series ID and ColorManager: "<sim_id>:<h5_path>".
     [[nodiscard]] std::string plot_key() const { return sim_id + ":" + meta.h5_path; }

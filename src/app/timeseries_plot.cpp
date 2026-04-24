@@ -126,7 +126,7 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
         if (!changed) {
             for (std::size_t i = 0; i < state.plotted_signals.size(); ++i) {
                 const auto& ps = state.plotted_signals[i];
-                if (m_prev_axis_fingerprint[i].first  != ps.plot_key() ||
+                if (m_prev_axis_fingerprint[i].first  != ps.plot_key_cached() ||
                     m_prev_axis_fingerprint[i].second != ps.y_axis) {
                     changed = true;
                     break;
@@ -138,8 +138,8 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
             m_prev_axis_fingerprint.resize(state.plotted_signals.size());
             for (std::size_t i = 0; i < state.plotted_signals.size(); ++i) {
                 const auto& ps = state.plotted_signals[i];
-                state.axis_manager.assign(ps.plot_key(), ps.y_axis);
-                m_prev_axis_fingerprint[i] = {ps.plot_key(), ps.y_axis};
+                state.axis_manager.assign(ps.plot_key_cached(), ps.y_axis);
+                m_prev_axis_fingerprint[i] = {ps.plot_key_cached(), ps.y_axis};
             }
         }
     }
