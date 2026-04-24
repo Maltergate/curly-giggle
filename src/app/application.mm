@@ -720,7 +720,7 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
         ImGui::Text("%zu signal%s plotted", n_sig, n_sig == 1 ? "" : "s");
         ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
 
-        ImGui::TextDisabled("CPU %.1f%%", sys.cpu_pct);
+        ImGui::TextDisabled("CPU %02.0f%%", sys.cpu_pct);
         ImGui::SameLine(0.0f, 12.0f); ImGui::TextDisabled("|"); ImGui::SameLine(0.0f, 12.0f);
 
         ImGui::TextDisabled("Mem %.0f MB", sys.rss_mb);
