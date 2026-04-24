@@ -1,22 +1,7 @@
 #pragma once
-
-// ── CollapsiblePane — generic collapsible side-pane widget ───────────────────
-//
-// Renders a child window with:
-//   - Normal state:  full width with a collapse button (◀ / ▶) in the header
-//   - Collapsed state: 22px-wide icon strip with an expand button (▶ / ◀)
-//
-// Usage (inside the host window, before calling BeginChild for your content):
-//
-//   static CollapsiblePane left_pane("Files", "##files", &state.panes.file_pane_visible);
-//   if (left_pane.begin(state.panes.file_pane_width)) {
-//       // ... your pane content ...
-//       left_pane.end();
-//   }
-//   ImGui::SameLine(0, 0);  // proceed to the next pane / splitter
-//
-// Note: the collapsed strip is still rendered (so transitions look smooth).
-// The caller must call end() only when begin() returns true.
+/// @file collapsible_pane.hpp
+/// @brief Collapsible side-pane ImGui widget.
+/// @ingroup ui_widgets
 
 #include "imgui.h"
 #include <string>
@@ -24,6 +9,10 @@
 
 namespace gnc_viz {
 
+/// @brief Collapsible side-pane ImGui widget.
+/// @details Renders a child window that can be collapsed to a 22-px icon strip.
+///          Normal state shows a full-width pane with a collapse button in the header.
+///          The caller must call end() if and only if begin() returns true.
 class CollapsiblePane {
 public:
     static constexpr float kCollapsedWidth = 22.0f;
@@ -36,7 +25,8 @@ public:
         : m_label(label), m_id(id), m_visible(visible) {}
 
     /// Begin the pane.
-    /// @param width  Current expanded width (from AppState.panes.*_width).
+    /// @param width    Current expanded width (from AppState.panes.*_width).
+    /// @param avail_h  Available vertical height for the pane child window.
     /// @returns true  → caller must call end() and may render content.
     ///          false → pane is collapsed; do NOT call end().
     bool begin(float width, float avail_h);

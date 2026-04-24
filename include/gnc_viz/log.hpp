@@ -1,21 +1,14 @@
 #pragma once
-
-// ── GNC Viz structured logging (spdlog) ───────────────────────────────────────
-//
-// Provides console + rotating-file sinks, named "gnc_viz".
-// Uses std::format (SPDLOG_USE_STD_FORMAT=ON) — no bundled fmtlib.
-//
-// Usage:
-//   gnc_viz::log::init();                       // call once at startup
-//   GNC_LOG_INFO("Loaded {} signals", count);   // source-location aware
-//   GNC_LOG_WARN("HDF5 version mismatch: {}", msg);
-//   gnc_viz::log::shutdown();                   // flush + release sinks
+/// @file log.hpp
+/// @brief Structured logging via spdlog with GNC_LOG_* convenience macros.
+/// @ingroup utilities
 
 #include <spdlog/spdlog.h>
 #include <string>
 
 namespace gnc_viz::log {
 
+/// @brief Logger configuration: file path, sinks, and log level.
 struct Config {
     std::string file_path    = "gnc_viz.log";
     bool        console      = true;
@@ -23,13 +16,15 @@ struct Config {
     spdlog::level::level_enum level = spdlog::level::debug;
 };
 
-/// Initialise the "gnc_viz" logger. Safe to call multiple times (no-op after first).
+/// @brief Initialise the "gnc_viz" logger with console and/or file sinks.
+/// @param cfg Logger configuration. Safe to call multiple times (no-op after first).
 void init(Config cfg = {});
 
-/// Flush all sinks and drop the logger. Call before app exit.
+/// @brief Flush all sinks and drop the logger. Call before app exit.
 void shutdown();
 
-/// Retrieve the shared logger (valid after init()).
+/// @brief Retrieve the shared logger (valid after init()).
+/// @return Shared pointer to the spdlog logger instance.
 std::shared_ptr<spdlog::logger> get();
 
 } // namespace gnc_viz::log

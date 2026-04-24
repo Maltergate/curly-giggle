@@ -1,14 +1,7 @@
 #pragma once
-
-// ── Application configuration (persistent, JSON-serializable) ─────────────────
-//
-// Config holds user preferences that survive across sessions.
-// Loaded from  ~/.gnc_viz/config.json  on startup.
-// Saved to the same path on shutdown (or explicitly via Config::save()).
-//
-// Relation to AppState:
-//   AppState owns a Config instance.  UI panels read/write config fields
-//   directly.  On load, Config values initialise the matching AppState fields.
+/// @file config.hpp
+/// @brief Persistent application configuration (color palette, layout, preferences).
+/// @ingroup utilities
 
 #include <array>
 #include <cstdint>
@@ -17,11 +10,9 @@
 
 namespace gnc_viz {
 
-// ── Color palette ─────────────────────────────────────────────────────────────
-//
-// 20 perceptually-distinct, colorblind-friendly RGBA colors (0xRRGGBBAA).
-// Initialized to a sensible default; user may reorder or replace them in the UI.
-
+/// @brief 20-entry perceptually-distinct colorblind-friendly RGBA palette.
+/// @details Colors are stored as packed 0xRRGGBBAA uint32 values.
+///          Defaults to an IBM/Wong 8-color base extended to 20 with Tableau variations.
 struct Palette {
     static constexpr int kSize = 20;
 
@@ -37,6 +28,9 @@ struct Palette {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
+/// @brief Persistent application configuration loaded from and saved to JSON.
+/// @details Loaded from ~/.gnc_viz/config.json on startup; saved on shutdown.
+///          AppState owns a Config instance; UI panels read/write its fields directly.
 struct Config {
     // Layout
     float file_pane_width   = 280.0f;

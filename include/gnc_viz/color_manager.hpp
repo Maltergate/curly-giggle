@@ -1,19 +1,8 @@
 #pragma once
-
-// ── ColorManager — assign distinct plot colors to signals ─────────────────────
-//
-// Manages a fixed palette of perceptually-distinct colors.
-// Each signal key gets a unique color from the palette.
-// When a signal is removed from the plot, its color is released for reuse.
-//
-// Colors are stored as packed RGBA uint32 (0xRRGGBBAA), compatible with
-// ImGui's IM_COL32 format and Palette::colors.
-//
-// Usage:
-//   ColorManager cm(config.palette);
-//   uint32_t col = cm.assign("sim0//attitude/quat");
-//   // ... later ...
-//   cm.release("sim0//attitude/quat");
+/// @file color_manager.hpp
+/// @brief Assigns perceptually-distinct palette colors to plot signals.
+/// @defgroup utilities Utilities
+/// @brief Color management, configuration, session, logging, versioning, I/O helpers.
 
 #include "gnc_viz/config.hpp"   // for Palette
 
@@ -24,6 +13,9 @@
 
 namespace gnc_viz {
 
+/// @brief Assigns perceptually-distinct palette colors to plot signals.
+/// @details Manages a fixed Palette of colors (packed RGBA uint32 = 0xRRGGBBAA).
+///          Colors are assigned on demand and released for reuse when a signal is removed.
 class ColorManager {
 public:
     explicit ColorManager(const Palette& palette = {});

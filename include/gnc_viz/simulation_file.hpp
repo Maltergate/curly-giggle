@@ -1,18 +1,7 @@
 #pragma once
-
-// ── SimulationFile — owns one open HDF5 file ──────────────────────────────────
-//
-// Wraps HDF5Reader with:
-//   - A unique sim_id (assigned at construction)
-//   - A user-chosen time axis path (auto-suggested, editable from the UI)
-//   - Weak-ptr cache: buffers are owned by PlottedSignal; this keeps them
-//     alive as long as any PlottedSignal holds a shared_ptr to them.
-//
-// Usage:
-//   auto sim = std::make_unique<SimulationFile>("sim0");
-//   sim->open("/path/to/result.h5");
-//   sim->set_time_axis("/time_utc");     // or leave empty for index axis
-//   auto buf = sim->load_signal(meta);
+/// @file simulation_file.hpp
+/// @brief Owns one open HDF5 file and its signal cache.
+/// @ingroup data_layer
 
 #include "gnc_viz/error.hpp"
 #include "gnc_viz/hdf5_reader.hpp"
@@ -27,6 +16,9 @@
 
 namespace gnc_viz {
 
+/// @brief Owns one open HDF5 file and its associated signal cache.
+/// @details Wraps HDF5Reader with a unique sim_id, a user-chosen time axis,
+///          and a weak-ptr buffer cache shared with PlottedSignal instances.
 class SimulationFile {
 public:
     explicit SimulationFile(std::string sim_id);

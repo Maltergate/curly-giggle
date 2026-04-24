@@ -1,22 +1,7 @@
 #pragma once
-
-// ── Generic type registry ──────────────────────────────────────────────────────
-//
-// Registry<Interface, Concept> maps string keys to factory functions.
-// Each factory creates a unique_ptr<Interface> from a default-constructible type.
-//
-// Usage:
-//   Registry<IPlotType, PlotTypeConcept> plot_registry;
-//   plot_registry.register_type<TimeSeriesPlot>("timeseries");
-//   auto plot = plot_registry.create("timeseries");  // → unique_ptr<IPlotType>
-//
-// Three convenience aliases are pre-defined:
-//   PlotRegistry, OperationRegistry, ToolRegistry
-//
-// Conventions:
-//  - register_type<T>() is constexpr-friendly and always overwrites existing key.
-//  - create() returns nullptr for unknown keys (callers must check).
-//  - get_all_keys() returns keys in insertion order.
+/// @file registry.hpp
+/// @brief Generic type registry mapping string keys to factory-created instances.
+/// @ingroup core_interfaces
 
 #include "gnc_viz/interfaces.hpp"
 
@@ -31,6 +16,10 @@ namespace gnc_viz {
 
 // ── Primary template ──────────────────────────────────────────────────────────
 
+/// @brief Generic type registry mapping string keys to factory functions.
+/// @tparam Interface The base interface type. All registered types must derive from it.
+/// @details Maps string identifiers to factory functions that produce `unique_ptr<Interface>`.
+///          Keys are stored in insertion order. Instances are created on demand via create().
 template<typename Interface>
 class Registry {
 public:
@@ -97,8 +86,11 @@ private:
 
 // ── Convenience aliases ────────────────────────────────────────────────────────
 
+/// @brief Registry specialisation for IPlotType.
 using PlotRegistry      = Registry<IPlotType>;
+/// @brief Registry specialisation for ISignalOperation.
 using OperationRegistry = Registry<ISignalOperation>;
+/// @brief Registry specialisation for IVisualizationTool.
 using ToolRegistry      = Registry<IVisualizationTool>;
 
 } // namespace gnc_viz

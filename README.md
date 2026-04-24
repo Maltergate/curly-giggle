@@ -220,8 +220,8 @@ curly-giggle/
 
 ## Architecture
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full module diagram,
-key class descriptions, data-flow walkthrough, and extension guides.
+See the [Developer Manual](docs/pages/03_developer_manual.md) and [Architecture Reference](docs/pages/04_architecture.md)
+for the full module diagram, key class descriptions, data-flow walkthrough, and extension guides.
 
 ---
 

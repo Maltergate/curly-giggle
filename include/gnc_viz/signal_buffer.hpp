@@ -1,23 +1,8 @@
 #pragma once
-
-// ── SignalBuffer — on-demand time-series data container ───────────────────────
-//
-// Holds the raw numeric data for one signal from an HDF5 file.
-// Owned via shared_ptr so multiple operations/plots share the same allocation.
-//
-// Memory model:
-//  - Buffers are loaded lazily (on first access) by SimulationFile.
-//  - The data can be evicted by resetting the shared_ptr (m_values goes empty).
-//  - All downstream consumers hold weak_ptr or std::span (borrowed views).
-//
-// Layout:
-//  - `time`   : 1-D array of sample timestamps in seconds  (length N)
-//  - `values` : row-major 2-D array, rows = samples, cols = components
-//               stored as flat vector of length N * n_components
-//               e.g. a quaternion with N=5000 samples: values.size() = 20000
-//               values[i * 4 + k] = sample i, component k
-//
-// Thread safety: none — load/evict from the owning SimulationFile only.
+/// @file signal_buffer.hpp
+/// @brief On-demand time-series data container for one HDF5 signal.
+/// @defgroup data_layer Data Layer
+/// @brief Signal loading, metadata, buffering, and time alignment.
 
 #include "gnc_viz/signal_metadata.hpp"
 
@@ -29,6 +14,11 @@
 
 namespace gnc_viz {
 
+/// @brief On-demand time-series data container for one HDF5 signal.
+/// @details Holds the raw numeric data for one signal from an HDF5 file.
+///          Owned via shared_ptr so multiple operations/plots share the same allocation.
+///          Layout: `time[N]` and flat row-major `values[N * n_components]`.
+///          Thread safety: none — load/evict from the owning SimulationFile only.
 class SignalBuffer {
 public:
     // ── Construction ──────────────────────────────────────────────────────────

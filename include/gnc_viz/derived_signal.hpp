@@ -1,4 +1,7 @@
 #pragma once
+/// @file derived_signal.hpp
+/// @brief Lazily-computed derived signal from an ISignalOperation and input buffers.
+/// @ingroup signal_ops
 
 #include "gnc_viz/signal_buffer.hpp"
 #include "gnc_viz/interfaces.hpp"
@@ -11,8 +14,9 @@
 
 namespace gnc_viz {
 
-/// DerivedSignal: computes a new SignalBuffer from N input buffers + an ISignalOperation.
-/// The result is cached after first computation; call invalidate() to force recomputation.
+/// @brief Lazily-computed derived signal from an ISignalOperation and input buffers.
+/// @details The result is cached after first computation; call invalidate() to force recomputation.
+///          Identified by a unique slug id and a human-readable display_name.
 struct DerivedSignal {
     /// Unique identifier (slug format, e.g. "derived_0")
     std::string id;

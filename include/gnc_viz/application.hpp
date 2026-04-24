@@ -1,23 +1,16 @@
 #pragma once
+/// @file application.hpp
+/// @brief Main application class: GLFW + Metal + ImGui lifecycle. PIMPL pattern.
+/// @ingroup app_layer
 
 #include <memory>
 #include <string_view>
 
 namespace gnc_viz {
 
-// ── Application ────────────────────────────────────────────────────────────────
-//
-// Owns the GLFW window, Metal device, and ImGui context.
-// All ObjC / Metal types are hidden behind a PIMPL so this header is plain C++
-// and can be included from non-.mm translation units.
-//
-// Typical usage:
-//   int main() {
-//       gnc_viz::Application app;
-//       if (!app.init()) return 1;
-//       app.run();
-//   }
-
+/// @brief Main application class: GLFW window, Metal device, and ImGui lifecycle.
+/// @details Owns all ObjC/Metal types behind a PIMPL so this header is plain C++.
+///          Typical usage: construct, call init(), call run(), destructor cleans up.
 class Application {
 public:
     Application();
@@ -28,12 +21,13 @@ public:
     Application(Application&&)                 = delete;
     Application& operator=(Application&&)      = delete;
 
+    /// @brief Window and ImGui configuration for Application::init(Config).
     struct Config {
         int              width            = 1600;
         int              height           = 900;
         std::string_view title            = "GNC Viz";
         bool             enable_docking   = true;
-        bool             enable_viewports = true;  // multi-viewport / detachable windows
+        bool             enable_viewports = true;  ///< Multi-viewport / detachable windows.
     };
 
     /// Set up window, Metal device, ImGui with default settings.

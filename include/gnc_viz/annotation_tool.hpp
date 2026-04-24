@@ -1,17 +1,24 @@
 #pragma once
+/// @file annotation_tool.hpp
+/// @brief IVisualizationTool that places text annotations on the plot.
+/// @ingroup tools
 #include "gnc_viz/interfaces.hpp"
 #include <vector>
 #include <string>
 
 namespace gnc_viz {
 
+/// @brief A single text annotation placed at a plot-space coordinate.
 struct Annotation {
-    double      time;           // X position in plot space
-    double      value;          // Y position in plot space
-    std::string text;           // label text
-    bool        has_arrow = false;
+    double      time;           ///< X position in plot space.
+    double      value;          ///< Y position in plot space.
+    std::string text;           ///< Label text.
+    bool        has_arrow = false; ///< Whether to draw an arrow to the point.
 };
 
+/// @brief IVisualizationTool that places text annotations on the plot.
+/// @details Left-click in the plot area to begin placing an annotation.
+///          The user types a label; pressing Enter confirms placement.
 class AnnotationTool : public IVisualizationTool {
 public:
     [[nodiscard]] std::string_view name() const noexcept override { return "Annotation"; }

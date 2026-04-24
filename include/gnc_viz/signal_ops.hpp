@@ -1,19 +1,8 @@
 #pragma once
-
-// ── ISignalOperation — abstract interface for signal transformations ───────────
-//
-// This file re-exports gnc_viz::ISignalOperation from interfaces.hpp and adds
-// the concrete built-in operations.
-//
-// Built-in operations (Phase 3):
-//   AddOp         — element-wise addition of two aligned scalar signals
-//   SubtractOp    — element-wise subtraction
-//   MultiplyOp    — element-wise multiplication
-//   ScaleOp       — multiply each sample by a scalar constant
-//   MagnitudeOp   — √(x₀² + x₁² + … + xₙ₋₁²) from N scalar signals
-//
-// All operations use TimeAligner (Phase 2) to align inputs before computing.
-// For Phase 3, a stub alignment (no-op, assumes same time base) is used.
+/// @file signal_ops.hpp
+/// @brief Built-in ISignalOperation implementations: Add, Subtract, Multiply, Scale, Magnitude.
+/// @defgroup signal_ops Signal Operations
+/// @brief Derived signal computation operations.
 
 #include "gnc_viz/interfaces.hpp"
 #include "gnc_viz/signal_buffer.hpp"
@@ -24,6 +13,7 @@ namespace gnc_viz {
 
 // ── AddOp ─────────────────────────────────────────────────────────────────────
 
+/// @brief Element-wise addition of two aligned scalar signals.
 class AddOp final : public ISignalOperation {
 public:
     [[nodiscard]] std::string_view name()        const noexcept override { return "Add"; }
@@ -36,6 +26,7 @@ public:
 
 // ── SubtractOp ────────────────────────────────────────────────────────────────
 
+/// @brief Element-wise subtraction of two aligned scalar signals (inputs[0] - inputs[1]).
 class SubtractOp final : public ISignalOperation {
 public:
     [[nodiscard]] std::string_view name()        const noexcept override { return "Subtract"; }
@@ -48,6 +39,7 @@ public:
 
 // ── MultiplyOp ────────────────────────────────────────────────────────────────
 
+/// @brief Element-wise multiplication of two aligned scalar signals.
 class MultiplyOp final : public ISignalOperation {
 public:
     [[nodiscard]] std::string_view name()        const noexcept override { return "Multiply"; }
@@ -59,9 +51,9 @@ public:
 };
 
 // ── ScaleOp ───────────────────────────────────────────────────────────────────
-// Multiplies all values by a constant factor.
-// The factor is set before calling execute().
 
+/// @brief Multiplies all values by a constant scale_factor.
+/// @details The factor is set on the struct before calling execute().
 class ScaleOp final : public ISignalOperation {
 public:
     double scale_factor = 1.0;
@@ -75,8 +67,8 @@ public:
 };
 
 // ── MagnitudeOp ───────────────────────────────────────────────────────────────
-// √(x₀² + x₁² + … + xₙ₋₁²) from N scalar input signals.
 
+/// @brief Computes √(x₀² + x₁² + … + xₙ₋₁²) from N scalar input signals (variadic).
 class MagnitudeOp final : public ISignalOperation {
 public:
     [[nodiscard]] std::string_view name()        const noexcept override { return "Magnitude"; }

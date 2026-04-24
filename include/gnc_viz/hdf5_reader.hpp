@@ -1,27 +1,7 @@
 #pragma once
-
-// ── HDF5Reader — enumerate and load HDF5 datasets ─────────────────────────────
-//
-// Intentionally generic: makes NO assumptions about file layout.
-//
-//   1. enumerate_signals() — walks all datasets, returns metadata for every
-//      dataset found (including any time axis).  The caller decides which
-//      dataset is the time axis.
-//
-//   2. suggest_time_axes() — heuristic scan for datasets that look like a time
-//      axis (1-D float, name contains "time"/"t").  Returns candidate paths
-//      ordered by likelihood.  These are suggestions only; the user chooses.
-//
-//   3. load_signal()        — reads one dataset.  The time axis path must be
-//      supplied explicitly via SignalMetadata::time_path, or synthesised from
-//      sample index if left empty.
-//
-// Thread safety:
-//   enumerate_signals(), suggest_time_axes(), and load_signal() may be called
-//   from any thread, but NOT concurrently.
-//
-// Error handling:
-//   All public methods return gnc::Result<T> — never throw.
+/// @file hdf5_reader.hpp
+/// @brief Low-level HDF5 dataset reader (enumerate + load). PIMPL pattern.
+/// @ingroup data_layer
 
 #include "gnc_viz/error.hpp"
 #include "gnc_viz/signal_metadata.hpp"
@@ -34,6 +14,10 @@
 
 namespace gnc_viz {
 
+/// @brief Low-level HDF5 dataset reader using a PIMPL pattern.
+/// @details Enumerates datasets and loads them into SignalBuffers.
+///          All public methods return gnc::Result<T> — never throw.
+///          Not thread-safe for concurrent calls.
 class HDF5Reader {
 public:
     HDF5Reader();

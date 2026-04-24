@@ -1,12 +1,7 @@
 #pragma once
-
-// ── AxisManager — multi-Y-axis state (max 3 axes, pure state, no ImPlot dep) ─
-//
-// ImPlot supports max 3 Y-axes (Y1=left, Y2=right, Y3=third).
-// AxisManager tracks which plotted signal (by plot_key) is on which axis,
-// and holds the AxisConfig for each axis.
-// The rendering code (timeseries_plot.cpp) reads this state and translates
-// it to ImPlot calls.
+/// @file axis_manager.hpp
+/// @brief Multi-Y-axis state manager (max 3 axes, no ImPlot dependency).
+/// @ingroup plot_system
 
 #include <array>
 #include <string>
@@ -15,7 +10,7 @@
 
 namespace gnc_viz {
 
-/// Configuration for one Y-axis (up to 3 in ImPlot).
+/// @brief Configuration for one Y-axis (up to 3 in ImPlot).
 struct AxisConfig {
     int         id          = 0;    ///< 0=Y1(left), 1=Y2(right), 2=Y3
     std::string label;              ///< e.g. "Position [km]"
@@ -25,6 +20,9 @@ struct AxisConfig {
     double      range_max   = 1.0;
 };
 
+/// @brief Multi-Y-axis state manager (max 3 axes, no ImPlot dependency).
+/// @details Tracks which plot signal (by plot_key) is assigned to which Y-axis
+///          and stores per-axis configuration (label, range, auto_range).
 class AxisManager {
 public:
     static constexpr int max_axes = 3;

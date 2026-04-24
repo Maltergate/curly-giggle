@@ -1,9 +1,8 @@
 #pragma once
-
-// ── AppState — central application data model ─────────────────────────────────
-//
-// Owns all runtime state. A single AppState instance lives in Application.
-// Every subsystem receives a (const) reference — no globals, no singletons.
+/// @file app_state.hpp
+/// @brief Central application data model — AppState and sub-structs.
+/// @defgroup app_layer Application Layer
+/// @brief Top-level application state and lifecycle.
 
 #include "gnc_viz/axis_manager.hpp"
 #include "gnc_viz/color_manager.hpp"
@@ -20,6 +19,7 @@ namespace gnc_viz {
 
 // ── Pane / layout state ────────────────────────────────────────────────────────
 
+/// @brief Visibility and width state for the collapsible side panes.
 struct PaneState {
     bool  file_pane_visible   = true;
     bool  signal_pane_visible = true;
@@ -29,6 +29,7 @@ struct PaneState {
 
 // ── Demo / debug toggles ───────────────────────────────────────────────────────
 
+/// @brief Debug and demo window visibility flags.
 struct DebugState {
     bool show_imgui_demo  = false;
     bool show_implot_demo = false;
@@ -36,10 +37,11 @@ struct DebugState {
 };
 
 // ── Central state struct ───────────────────────────────────────────────────────
-//
-// Rule: subsystems may mutate only their own section of AppState.
-// Pass AppState& for mutation, const AppState& for read-only access.
 
+/// @brief Central application data model — owns all runtime state.
+/// @details A single AppState instance lives in Application. Every subsystem
+///          receives a (const) reference — no globals, no singletons.
+///          Subsystems may mutate only their own section.
 struct AppState {
     // ── Data layer ─────────────────────────────────────────────────────────────
     std::vector<std::unique_ptr<SimulationFile>> simulations;
