@@ -36,13 +36,70 @@
 #include "fastscope/log_pane.hpp"
 #include "fastscope/session.hpp"
 
+#include <mach/mach.h>
+#include <sys/resource.h>
+#include <sys/time.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <ctime>
 #include <filesystem>
 #include <string>
 
 namespace fastscope {
+
+// ── System stats (macOS) ───────────────────────────────────────────────────────
+struct SystemStats {
+    float cpu_pct = 0.0f;   ///< App CPU usage in percent.
+    float rss_mb  = 0.0f;   ///< Resident set size in megabytes.
+};
+
+/// Returns lightweight per-frame system metrics.
+/// CPU% is computed from rusage delta so it reflects actual usage since last call.
+static SystemStats query_system_stats() noexcept
+{
+    SystemStats s;
+
+    // ── Memory: task resident set size ──────────────────────────────────────────
+    {
+        mach_task_basic_info_data_t info{};
+        mach_msg_type_number_t count = MACH_TASK_BASIC_INFO_COUNT;
+        if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO,
+                      reinterpret_cast<task_info_t>(&info), &count) == KERN_SUCCESS)
+            s.rss_mb = static_cast<float>(info.resident_size) / (1024.0f * 1024.0f);
+    }
+
+    // ── CPU: rusage delta / wall-clock delta ─────────────────────────────────
+    {
+        static struct rusage s_prev{};
+        static struct timeval s_wall_prev{};
+        static bool s_first = true;
+
+        struct rusage cur{};
+        struct timeval wall_now{};
+        getrusage(RUSAGE_SELF, &cur);
+        gettimeofday(&wall_now, nullptr);
+
+        if (!s_first) {
+            // CPU seconds consumed since last sample
+            double du = (cur.ru_utime.tv_sec  - s_prev.ru_utime.tv_sec) +
+                        (cur.ru_utime.tv_usec - s_prev.ru_utime.tv_usec) * 1e-6;
+            double ds = (cur.ru_stime.tv_sec  - s_prev.ru_stime.tv_sec) +
+                        (cur.ru_stime.tv_usec - s_prev.ru_stime.tv_usec) * 1e-6;
+            double dw = (wall_now.tv_sec  - s_wall_prev.tv_sec) +
+                        (wall_now.tv_usec - s_wall_prev.tv_usec) * 1e-6;
+            if (dw > 0.0)
+                s.cpu_pct = static_cast<float>((du + ds) / dw * 100.0);
+        }
+
+        s_prev      = cur;
+        s_wall_prev = wall_now;
+        s_first     = false;
+    }
+
+    return s;
+}
 
 // ── forward declarations ───────────────────────────────────────────────────────
 static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& io);
@@ -629,18 +686,44 @@ static void render_ui_frame(AppState& state, PlotEngine& engine, const ImGuiIO& 
 
     // ── Status bar ────────────────────────────────────────────────────────────
     {
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.13f, 0.13f, 0.16f, 1.0f));
+        const SystemStats sys    = query_system_stats();
+        const float       fps    = io.Framerate;
+        const std::size_t n_sims = state.simulations.size();
+        const std::size_t n_sig  = state.plotted_signals.size();
+
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.10f, 0.10f, 0.13f, 1.0f));
         ImGui::BeginChild("##StatusBar", ImVec2(-1.0f, status_bar_h), ImGuiChildFlags_None);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 0.0f));
         ImGui::SetCursorPosY(4.0f);
         ImGui::SetCursorPosX(8.0f);
-        const std::size_t n_sims = state.simulations.size();
-        ImGui::Text("%zu simulation%s", n_sims, n_sims == 1 ? "" : "s");
+
+        // FPS
+        ImGui::TextDisabled("%.1f fps", fps);
         ImGui::SameLine(0.0f, 12.0f);
         ImGui::TextDisabled("|");
         ImGui::SameLine(0.0f, 12.0f);
-        const std::size_t n_sig = state.plotted_signals.size();
+
+        // Simulations loaded
+        ImGui::Text("%zu file%s", n_sims, n_sims == 1 ? "" : "s");
+        ImGui::SameLine(0.0f, 12.0f);
+        ImGui::TextDisabled("|");
+        ImGui::SameLine(0.0f, 12.0f);
+
+        // Signals plotted
         ImGui::Text("%zu signal%s plotted", n_sig, n_sig == 1 ? "" : "s");
+        ImGui::SameLine(0.0f, 12.0f);
+        ImGui::TextDisabled("|");
+        ImGui::SameLine(0.0f, 12.0f);
+
+        // CPU %
+        ImGui::TextDisabled("CPU %.1f%%", sys.cpu_pct);
+        ImGui::SameLine(0.0f, 12.0f);
+        ImGui::TextDisabled("|");
+        ImGui::SameLine(0.0f, 12.0f);
+
+        // Memory RSS
+        ImGui::TextDisabled("Mem %.0f MB", sys.rss_mb);
+
         ImGui::PopStyleVar();
         ImGui::EndChild();
         ImGui::PopStyleColor();

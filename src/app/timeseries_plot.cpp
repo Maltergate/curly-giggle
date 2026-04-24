@@ -165,7 +165,7 @@ void TimeSeriesPlot::render(AppState& state, float width, float height)
         if (m_fit_on_next_frame || m_fit_y_on_next_frame)
             yf |= ImPlotAxisFlags_AutoFit;
 
-        const char* default_label = (cfg.id == 1) ? "Y2" : (cfg.id == 2) ? "Y3" : "Value";
+        const char* default_label = (cfg.id == 1) ? "Y2" : (cfg.id == 2) ? "Y3" : nullptr;
         const char* label = cfg.label.empty() ? default_label : cfg.label.c_str();
 
         ImPlot::SetupAxis(imaxis, label, yf);
