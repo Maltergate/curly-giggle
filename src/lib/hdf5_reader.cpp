@@ -414,6 +414,16 @@ HDF5Reader::load_signal(const SignalMetadata& meta) const
                 time_res.error().code,
                 "Time axis '" + meta.time_path + "': " + time_res.error().message);
         time_vec = std::move(*time_res);
+
+        // Dimension guard: time must have exactly as many samples as the signal.
+        if (time_vec.size() != N) {
+            return fastscope::make_error<std::shared_ptr<SignalBuffer>>(
+                fastscope::ErrorCode::InvalidState,
+                "Time/signal dimension mismatch for '" + meta.h5_path + "': "
+                "time axis '" + meta.time_path + "' has " +
+                std::to_string(time_vec.size()) + " samples but signal has " +
+                std::to_string(N) + " samples. Signal cannot be plotted.");
+        }
     } else {
         // No time reference was found during enumeration — refuse to plot
         return fastscope::make_error<std::shared_ptr<SignalBuffer>>(
