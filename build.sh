@@ -44,4 +44,5 @@ fi
 
 echo ""
 echo "✓ Build complete (${BUILD_TYPE})"
-echo "  Binary: ${BUILD_DIR}/bin/fastscope"
+echo "  App bundle: ${BUILD_DIR}/bin/fastscope.app"
+echo "  Run:        open ${BUILD_DIR}/bin/fastscope.app"

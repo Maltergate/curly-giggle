@@ -1,4 +1,9 @@
-add_executable(fastscope
+set(APP_ICON ${CMAKE_SOURCE_DIR}/cmake/fastscope.icns)
+set_source_files_properties(${APP_ICON} PROPERTIES
+    MACOSX_PACKAGE_LOCATION "Resources")
+
+add_executable(fastscope MACOSX_BUNDLE
+    ${APP_ICON}
     main.mm
     application.mm
     collapsible_pane.cpp
@@ -13,6 +18,14 @@ add_executable(fastscope
     annotation_tool.cpp
     ruler_tool.cpp
     log_pane.cpp
+)
+
+set_target_properties(fastscope PROPERTIES
+    MACOSX_BUNDLE_BUNDLE_NAME          "FastScope"
+    MACOSX_BUNDLE_GUI_IDENTIFIER       "com.fastscope.app"
+    MACOSX_BUNDLE_BUNDLE_VERSION       "0.1.0"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1.0"
+    MACOSX_BUNDLE_ICON_FILE            "fastscope.icns"
 )
 
 # Enable ARC for our Objective-C++ sources so that ObjC objects in Application::Impl
