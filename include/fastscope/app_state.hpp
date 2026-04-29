@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <regex>
 #include <string>
 #include <vector>
 
@@ -40,6 +41,15 @@ struct DebugState {
     bool show_metrics     = false;
 };
 
+// ── Signal exclusion rules ─────────────────────────────────────────────────────
+
+/// @brief A compiled ECMAScript regex rule that hides matching signals from the
+///        signal tree.  Rules are global (apply to all loaded simulations).
+struct SignalExclusionRule {
+    std::string pattern;   ///< Raw regex string as entered by the user.
+    std::regex  compiled;  ///< Compiled form — rebuilt once on rule add.
+};
+
 // ── Central state struct ───────────────────────────────────────────────────────
 
 /// @brief Central application data model — owns all runtime state.
@@ -63,6 +73,13 @@ struct AppState {
 
     // ── Color management ──────────────────────────────────────────────────────
     ColorManager colors;
+
+    // ── Signal exclusion rules ────────────────────────────────────────────────
+    /// Global regex rules that hide matching signals from the signal tree.
+    /// Adding or removing a rule increments signal_exclusion_version so the
+    /// per-simulation exclusion caches in the widget know to rebuild.
+    std::vector<SignalExclusionRule> signal_exclusions;
+    uint32_t signal_exclusion_version = 0;
 
     // ── UI / layout ───────────────────────────────────────────────────────────
     PaneState  panes;

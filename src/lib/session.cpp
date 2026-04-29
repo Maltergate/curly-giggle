@@ -9,6 +9,7 @@
 
 #include <fstream>
 #include <filesystem>
+#include <regex>
 #include <cstdio>
 
 namespace fastscope {
@@ -86,6 +87,12 @@ bool save_session(const AppState& state, const std::filesystem::path& path)
         j["y_axes"] = std::move(y_axes);
 
         j["active_plot_type"] = "timeseries";
+
+        // Exclusion rules
+        json excl = json::array();
+        for (const auto& rule : state.signal_exclusions)
+            excl.push_back({{"pattern", rule.pattern}});
+        j["signal_exclusions"] = std::move(excl);
 
         // Annotations
         json annots = json::array();
@@ -226,6 +233,19 @@ bool load_session(AppState& state, const std::filesystem::path& path)
         state.panes.file_pane_width     = panes.value("file_pane_width",     280.0f);
         state.panes.signal_pane_width   = panes.value("signal_pane_width",   300.0f);
     }
+
+    // Signal exclusion rules — absent in older sessions; defaults to empty
+    for (const auto& entry : j.value("signal_exclusions", json::array())) {
+        const std::string pat = entry.value("pattern", "");
+        if (pat.empty()) continue;
+        try {
+            std::regex compiled(pat, std::regex::ECMAScript | std::regex::optimize);
+            state.signal_exclusions.push_back({pat, std::move(compiled)});
+        } catch (const std::regex_error& e) {
+            FASTSCOPE_LOG_WARN("load_session: invalid exclusion regex '{}': {}", pat, e.what());
+        }
+    }
+    state.signal_exclusion_version = 0;
 
     // Annotations
     for (const auto& entry : j.value("annotations", json::array())) {
